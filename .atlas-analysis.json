@@ -1,0 +1,127 @@
+{
+  "projectType": "frontend",
+  "projectName": "PixelFlow",
+  "projectDescription": "A client-side web application for batch image processing including optimization, resizing, cropping, format conversion, and renaming.",
+  "theme": "palm",
+  "primaryColor": "#a855f7",
+  "lightColor": "#818cf8",
+  "darkColor": null,
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "introduction",
+              "features",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Getting Started",
+            "pages": [
+              "installation",
+              "configuration",
+              "customization"
+            ]
+          },
+          {
+            "group": "Image Processing",
+            "pages": [
+              "processing/optimization",
+              "processing/format-conversion",
+              "processing/resizing",
+              "processing/cropping",
+              "processing/batch-operations"
+            ]
+          },
+          {
+            "group": "File Management",
+            "pages": [
+              "file-management/uploading",
+              "file-management/renaming",
+              "file-management/downloading"
+            ]
+          },
+          {
+            "group": "Advanced",
+            "pages": [
+              "advanced/brand-customization",
+              "advanced/memory-management",
+              "advanced/performance"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Hooks",
+            "pages": [
+              "api/hooks/use-image-upload",
+              "api/hooks/use-image-processor",
+              "api/hooks/use-image-rename"
+            ]
+          },
+          {
+            "group": "Utilities",
+            "pages": [
+              "api/utils/image-processing",
+              "api/utils/file-validation",
+              "api/utils/memory-manager"
+            ]
+          },
+          {
+            "group": "Components",
+            "pages": [
+              "api/components/upload-area",
+              "api/components/tools-panel",
+              "api/components/processed-images-list"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "api/config/brand-config",
+              "api/config/constants"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Client-side batch image processing with no server required",
+    "Image optimization using browser-image-compression",
+    "Format conversion between JPG, PNG, WEBP, and GIF",
+    "Flexible resizing with pixel or percentage units",
+    "Intelligent cropping with position control",
+    "Batch file renaming with multiple patterns",
+    "ZIP download for processed images",
+    "Brand customization with logo and color themes",
+    "Memory-efficient processing for large files",
+    "Responsive UI built with Ant Design"
+  ],
+  "publicApiSurface": [
+    "useImageUpload",
+    "useImageProcessor",
+    "useImageRename",
+    "optimizeImage",
+    "resizeImage",
+    "convertImageFormat",
+    "cropImage",
+    "calculatePercentageDimensions",
+    "validateFileType",
+    "validateFileSize",
+    "formatFileSize",
+    "estimateMemoryUsage",
+    "createLowResPreview",
+    "cleanupImageURLs",
+    "BrandContext",
+    "useBrand",
+    "brandConfig"
+  ]
+}
