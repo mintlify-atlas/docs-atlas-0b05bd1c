@@ -1,0 +1,368 @@
+---
+title: 'ProcessedImagesList'
+description: 'Grid display component for processed images with optimization statistics and format detection'
+icon: 'images'
+---
+
+## Overview
+
+The `ProcessedImagesList` component displays a responsive grid of processed images with their metadata, including file size, optimization statistics, and detected format. It handles loading states and empty states gracefully.
+
+## Features
+
+- Responsive grid layout (1-4 columns based on screen size)
+- Image previews with optimized display
+- File size and format information
+- Optimization statistics (reduction percentage and size)
+- Loading state with spinner
+- Empty state placeholder
+- File name tooltips for truncated names
+- Automatic format detection from MIME types
+
+## Props
+
+<ParamField path="images" type="array" default="[]">
+  Array of processed image objects to display.
+  
+  <Expandable title="image object structure">
+    <ResponseField name="id" type="string | number" required>
+      Unique identifier for the image.
+    </ResponseField>
+    
+    <ResponseField name="name" type="string">
+      Original filename.
+    </ResponseField>
+    
+    <ResponseField name="newName" type="string">
+      Processed/renamed filename (takes precedence over name).
+    </ResponseField>
+    
+    <ResponseField name="size" type="number">
+      Original file size in bytes.
+    </ResponseField>
+    
+    <ResponseField name="preview" type="string">
+      URL for the preview image (original).
+    </ResponseField>
+    
+    <ResponseField name="processedPreview" type="string">
+      URL for the processed preview image (takes precedence over preview).
+    </ResponseField>
+    
+    <ResponseField name="processedFile" type="object">
+      Processed File object with type property for format detection.
+    </ResponseField>
+    
+    <ResponseField name="formattedProcessedSize" type="string">
+      Human-readable processed file size (e.g., "1.2 MB").
+    </ResponseField>
+    
+    <ResponseField name="fileChanged" type="boolean">
+      Indicates if the file was modified during processing.
+    </ResponseField>
+    
+    <ResponseField name="optimization" type="object">
+      Optimization statistics.
+      
+      <Expandable title="properties">
+        <ResponseField name="reductionPercent" type="number">
+          Percentage of size reduction (0-100).
+        </ResponseField>
+        <ResponseField name="reduction" type="number">
+          Absolute size reduction in bytes.
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="loading" type="boolean" default="false">
+  When `true`, displays a loading spinner instead of the image grid.
+</ParamField>
+
+## Usage
+
+### Basic usage
+
+```jsx
+import ProcessedImagesList from '@/components/ImageProcessor/ProcessedImagesList';
+
+function MyComponent() {
+  const images = [
+    {
+      id: 1,
+      name: 'photo.jpg',
+      newName: 'photo_01.jpg',
+      size: 2048576,
+      preview: 'blob:http://localhost/abc123',
+      processedFile: { type: 'image/jpeg' },
+      formattedProcessedSize: '1.5 MB',
+      fileChanged: true,
+      optimization: {
+        reductionPercent: 25,
+        reduction: 524288,
+      },
+    },
+  ];
+
+  return <ProcessedImagesList images={images} />;
+}
+```
+
+### With loading state
+
+```jsx
+import ProcessedImagesList from '@/components/ImageProcessor/ProcessedImagesList';
+
+function MyComponent() {
+  const [images, setImages] = useState([]);
+  const [isProcessing, setIsProcessing] = useState(true);
+
+  return <ProcessedImagesList images={images} loading={isProcessing} />;
+}
+```
+
+### Real-world example from App.jsx
+
+```jsx
+import ProcessedImagesList from '@/components/ImageProcessor/ProcessedImagesList';
+import useImageRename from '@/hooks/useImageRename';
+import useImageProcessor from '@/hooks/useImageProcessor';
+
+function App() {
+  const { processedImages, processing } = useImageProcessor(uploadedImages);
+  const { renamedImages } = useImageRename(processedImages);
+  const loading = uploadLoading || processing;
+
+  return (
+    <Card
+      title="Imágenes Listas"
+      extra={<DownloadButton images={renamedImages} loading={loading} />}
+    >
+      <ProcessedImagesList images={renamedImages} loading={loading} />
+    </Card>
+  );
+}
+```
+
+## Display states
+
+The component handles three distinct states:
+
+### Loading state
+
+When `loading={true}`:
+
+```jsx
+<ProcessedImagesList images={[]} loading={true} />
+```
+
+Displays a centered spinner with "Procesando imágenes..." text.
+
+### Empty state
+
+When `images` is empty and not loading:
+
+```jsx
+<ProcessedImagesList images={[]} loading={false} />
+```
+
+Displays an empty state placeholder with "No hay imágenes procesadas" message.
+
+### Grid state
+
+When images are available:
+
+```jsx
+<ProcessedImagesList images={processedImages} loading={false} />
+```
+
+Displays a responsive grid of image cards.
+
+## Grid layout
+
+The component uses Ant Design's responsive grid system:
+
+| Screen Size | Columns | Col Span |
+|-------------|---------|----------|
+| Extra Small (xs) | 1 | 24 |
+| Small (sm) | 2 | 12 |
+| Medium (md) | 3 | 8 |
+| Large (lg+) | 4 | 6 |
+
+```jsx
+<Col xs={24} sm={12} md={8} lg={6} key={image.id}>
+  {/* Image card */}
+</Col>
+```
+
+## Image card structure
+
+Each image is displayed in a card with the following information:
+
+<Steps>
+  <Step title="Preview image">
+    160px height container with centered, contain-fit image display.
+  </Step>
+  
+  <Step title="Filename">
+    Truncated filename with tooltip showing full name on hover.
+  </Step>
+  
+  <Step title="File size">
+    Formatted file size (e.g., "1.5 MB").
+  </Step>
+  
+  <Step title="Optimization stats">
+    If file was optimized, shows reduction percentage and amount in green text.
+  </Step>
+  
+  <Step title="Format indicator">
+    Detected file format in blue text (JPG, PNG, WEBP, GIF).
+  </Step>
+</Steps>
+
+## Format detection
+
+The component includes intelligent format detection:
+
+```jsx
+const detectRealFormat = (image) => {
+  // First, check processedFile MIME type
+  if (image.processedFile && image.processedFile.type) {
+    const mimeType = image.processedFile.type.toLowerCase();
+    if (mimeType.includes('jpeg') || mimeType.includes('jpg')) return 'JPG';
+    if (mimeType.includes('png')) return 'PNG';
+    if (mimeType.includes('webp')) return 'WEBP';
+    if (mimeType.includes('gif')) return 'GIF';
+  }
+  
+  // Fallback to file extension
+  const ext = getFileExtension(image.newName || image.name);
+  return ext.toUpperCase();
+};
+```
+
+<Note>
+  Format detection prioritizes MIME type from the processed file over filename extension for accuracy.
+</Note>
+
+## Optimization statistics
+
+When an image has been optimized (`fileChanged: true` and `optimization` present):
+
+```jsx
+{image.fileChanged && image.optimization && (
+  <Text type="success" style={{ fontSize: '12px' }}>
+    ↓ {image.optimization.reductionPercent}% ({formatFileSize(image.optimization.reduction)})
+  </Text>
+)}
+```
+
+**Example output:** `↓ 25% (524 KB)`
+
+## Data validation
+
+The component filters out invalid images before rendering:
+
+```jsx
+const validImages = images.filter((img) => img && img.id);
+```
+
+<Warning>
+  Images without an `id` property are silently filtered out to prevent rendering errors.
+</Warning>
+
+## Preview image selection
+
+The component uses a fallback strategy for preview images:
+
+```jsx
+src={image.processedPreview || image.preview}
+alt={image.newName || image.name}
+```
+
+1. **processedPreview** - Optimized preview after processing (preferred)
+2. **preview** - Original preview (fallback)
+
+## Implementation details
+
+### Source location
+
+`src/components/ImageProcessor/ProcessedImagesList.jsx:14`
+
+### Dependencies
+
+- `antd` - Row, Col, Card, Typography, Spin, Empty, Tooltip
+- `@/lib/fileValidation` - formatFileSize, getFileExtension utilities
+
+### Performance considerations
+
+<AccordionGroup>
+  <Accordion title="Image optimization">
+    The component displays optimized previews when available to reduce memory usage, especially important for large image sets.
+  </Accordion>
+  
+  <Accordion title="Responsive grid">
+    Uses Ant Design's grid system for automatic responsive layout without custom media queries.
+  </Accordion>
+  
+  <Accordion title="Lazy rendering">
+    Only valid images with IDs are rendered, preventing unnecessary DOM operations.
+  </Accordion>
+</AccordionGroup>
+
+## Styling
+
+The component uses inline styles for consistent appearance:
+
+```jsx
+// Preview container
+style={{
+  height: '160px',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  overflow: 'hidden',
+  background: '#f5f5f5',
+}}
+
+// Preview image
+style={{
+  maxWidth: '100%',
+  maxHeight: '100%',
+  objectFit: 'contain',
+}}
+
+// Card body
+bodyStyle={{ padding: '12px' }}
+```
+
+## Accessibility
+
+- All images include descriptive `alt` attributes
+- Empty state uses semantic Empty component
+- Tooltips provide full filenames for truncated text
+- Color contrast meets WCAG standards
+
+## Related components
+
+<Columns cols={2}>
+  <Card title="UploadedImagesList" icon="images" href="/api/hooks/use-image-upload">
+    Displays uploaded images before processing.
+  </Card>
+  
+  <Card title="DownloadButton" icon="download" href="/file-management/downloading">
+    Button for downloading processed images.
+  </Card>
+  
+  <Card title="ToolsPanel" icon="toolbox" href="/api/components/tools-panel">
+    Panel for configuring image processing settings.
+  </Card>
+</Columns>
+
+## See also
+
+- [useImageProcessor hook](/api/hooks/use-image-processor) - Hook for processing images
+- [useImageRename hook](/api/hooks/use-image-rename) - Hook for renaming processed images
+- [File validation utilities](/api/utilities/file-validation) - Helper functions for file operations

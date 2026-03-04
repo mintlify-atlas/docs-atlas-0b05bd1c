@@ -1,0 +1,485 @@
+---
+title: 'Memory Manager'
+description: 'Memory management utilities for handling large images and preventing browser crashes'
+icon: 'memory'
+---
+
+Utilities for managing memory when working with large image files. These functions help prevent browser crashes and improve performance when processing high-resolution images.
+
+## Functions
+
+### estimateImageMemoryUsage
+
+Estimates how much memory an image will consume when loaded into the browser.
+
+```javascript
+import { estimateImageMemoryUsage } from '@/lib/memoryManager';
+
+// With known dimensions
+const bytes = estimateImageMemoryUsage(file, 1920, 1080);
+// Returns: 8294400 (1920 * 1080 * 4 bytes per pixel)
+
+// Without dimensions (estimates from file size)
+const bytes = estimateImageMemoryUsage(file);
+// Returns: file.size * 10 (compression ratio estimate)
+```
+
+<ParamField path="file" type="File" required>
+  Image file to estimate memory for
+</ParamField>
+
+<ParamField path="imageWidth" type="number" default="0">
+  Image width in pixels (optional, enables accurate calculation)
+</ParamField>
+
+<ParamField path="imageHeight" type="number" default="0">
+  Image height in pixels (optional, enables accurate calculation)
+</ParamField>
+
+<ResponseField name="return" type="number">
+  Estimated memory usage in bytes
+</ResponseField>
+
+#### Implementation Notes
+
+- **With dimensions**: `width * height * BYTES_PER_PIXEL_RGBA`
+  - Each pixel requires 4 bytes (RGBA)
+  - Example: 1920×1080 = 8,294,400 bytes (~8 MB)
+- **Without dimensions**: `file.size * ESTIMATED_COMPRESSION_RATIO`
+  - Assumes 10:1 compression ratio
+  - Less accurate but useful when dimensions unknown
+- Constants from `@/lib/constants.js`:
+  - `BYTES_PER_PIXEL_RGBA = 4`
+  - `ESTIMATED_COMPRESSION_RATIO = 10`
+
+#### Usage Example
+
+From `useImageUpload.js:76-81`:
+
+```javascript
+// Estimate memory usage to alert user if necessary
+const estimatedMemory = estimateImageMemoryUsage(file);
+const memoryWarning = estimatedMemory > MEMORY_WARNING_THRESHOLD;
+
+if (memoryWarning) {
+  logger.warn(`Imagen grande detectada: ${file.name}. Puede afectar al rendimiento.`);
+}
+```
+
+---
+
+### createLowResPreview
+
+Creates a low-resolution preview of an image to reduce memory usage.
+
+```javascript
+import { createLowResPreview } from '@/lib/memoryManager';
+
+const dataUrl = await createLowResPreview(file);
+// Returns: "data:image/jpeg;base64,/9j/4AAQSkZJRg..."
+
+// Use in img tag:
+<img src={dataUrl} alt="Preview" />
+```
+
+<ParamField path="file" type="File" required>
+  Original image file
+</ParamField>
+
+<ResponseField name="return" type="Promise<string>">
+  Data URL of the low-resolution preview (base64-encoded JPEG)
+</ResponseField>
+
+#### Implementation Notes
+
+- Target size: `PREVIEW_SIZE` (300px) on longest dimension
+- Quality: `LOW_RES_PREVIEW_QUALITY` (0.5)
+- Output format: Always JPEG (with quality compression)
+- Aspect ratio: Preserved automatically
+- Memory cleanup: Automatically revokes temporary object URLs
+- Algorithm:
+  1. Read file with FileReader
+  2. Load into Image element
+  3. Calculate new dimensions (max 300px)
+  4. Draw to canvas at reduced size
+  5. Convert to data URL with `toDataURL('image/jpeg', 0.5)`
+  6. Clean up temporary URLs
+
+#### Usage Example
+
+From `useImageUpload.js:62-73`:
+
+```javascript
+// Check if image is large (more than 10MB)
+const isLargeImage = file.size > LARGE_IMAGE_THRESHOLD;
+
+// Create appropriate preview based on size
+let preview;
+if (isLargeImage) {
+  // For large images, create a low-resolution preview
+  // to avoid memory problems
+  preview = await createLowResPreview(file);
+} else {
+  // For normal images, use standard preview
+  preview = getImagePreview(file);
+}
+```
+
+---
+
+### cleanupImageURLs
+
+**Note**: This function is exported as `releaseObjectURLs` in the actual implementation.
+
+Releases memory by revoking object URLs that are no longer needed.
+
+```javascript
+import { releaseObjectURLs } from '@/lib/memoryManager';
+
+const urls = [
+  'blob:http://localhost:3000/abc123',
+  'blob:http://localhost:3000/def456'
+];
+
+releaseObjectURLs(urls);
+// Memory is freed for these object URLs
+```
+
+<ParamField path="urls" type="Array<string>" default="[]">
+  Array of object URLs to revoke (URLs starting with `"blob:"`)
+</ParamField>
+
+<ResponseField name="return" type="void">
+  No return value
+</ResponseField>
+
+#### Implementation Notes
+
+- Safely handles:
+  - Empty arrays
+  - Null/undefined input
+  - Non-blob URLs (skips them)
+  - Revocation errors (logs but continues)
+- Only revokes URLs starting with `"blob:"`
+- Uses `URL.revokeObjectURL()` for each URL
+- Errors are logged with `logger.error()` but don't throw
+
+---
+
+## Advanced Functions
+
+### compressImageForMemory
+
+Compresses an image to reduce its in-memory footprint.
+
+```javascript
+import { compressImageForMemory } from '@/lib/memoryManager';
+
+const compressed = await compressImageForMemory(file, {
+  maxWidth: 1920,
+  maxHeight: 1080,
+  quality: 0.85
+});
+```
+
+<ParamField path="file" type="File | Blob" required>
+  Image file or blob to compress
+</ParamField>
+
+<ParamField path="options" type="Object">
+  Compression options
+  
+  <Expandable title="properties">
+    <ParamField path="maxWidth" type="number" default="1920">
+      Maximum width (default: `MEMORY_MAX_WIDTH`)
+    </ParamField>
+    
+    <ParamField path="maxHeight" type="number" default="1080">
+      Maximum height (default: `MEMORY_MAX_HEIGHT`)
+    </ParamField>
+    
+    <ParamField path="quality" type="number" default="0.85">
+      Compression quality 0-1 (default: `MEMORY_COMPRESSION_QUALITY`)
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ResponseField name="return" type="Promise<Blob>">
+  Compressed image blob
+</ResponseField>
+
+#### Implementation Notes
+
+- Uses FileReader and Canvas API
+- Resizes if dimensions exceed max values
+- Preserves aspect ratio when resizing
+- Automatically cleans up temporary object URLs
+- Rejects promise on error
+
+---
+
+### splitImageIntoChunks
+
+Divides a large image into smaller chunks for processing.
+
+```javascript
+import { splitImageIntoChunks } from '@/lib/memoryManager';
+
+const img = new Image();
+img.src = 'large-image.jpg';
+img.onload = () => {
+  const chunks = splitImageIntoChunks(img, 1024);
+  // Returns array of canvas chunks
+};
+```
+
+<ParamField path="image" type="HTMLImageElement" required>
+  Loaded image element to split
+</ParamField>
+
+<ParamField path="chunkSize" type="number" default="1024">
+  Maximum size of each chunk in pixels (default: `IMAGE_CHUNK_SIZE`)
+</ParamField>
+
+<ResponseField name="return" type="Array<Object>">
+  Array of chunk objects
+  
+  <Expandable title="chunk properties">
+    <ResponseField name="canvas" type="HTMLCanvasElement">
+      Canvas element containing chunk image data
+    </ResponseField>
+    
+    <ResponseField name="x" type="number">
+      X position of chunk in original image
+    </ResponseField>
+    
+    <ResponseField name="y" type="number">
+      Y position of chunk in original image
+    </ResponseField>
+    
+    <ResponseField name="width" type="number">
+      Width of chunk in pixels
+    </ResponseField>
+    
+    <ResponseField name="height" type="number">
+      Height of chunk in pixels
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+#### Implementation Notes
+
+- Divides image into grid of chunks
+- Each chunk is a separate canvas element
+- Useful for processing extremely large images
+- Prevents memory overflow on single large canvas
+- Algorithm:
+  1. Calculate number of rows and columns
+  2. For each grid position:
+     - Create canvas for chunk
+     - Draw portion of image to canvas
+     - Store canvas and position info
+
+---
+
+### forceGarbageCollection
+
+Attempts to trigger garbage collection (debugging only).
+
+```javascript
+import { forceGarbageCollection } from '@/lib/memoryManager';
+
+forceGarbageCollection();
+```
+
+<ResponseField name="return" type="void">
+  No return value
+</ResponseField>
+
+#### Implementation Notes
+
+- **Only works in Chrome with `--js-flags="--expose-gc"`**
+- Does nothing in production browsers
+- Calls `window.gc()` if available
+- Silently fails if not available
+- **Not recommended for production use**
+
+---
+
+### cleanupMemory
+
+General-purpose memory cleanup with optional callback.
+
+```javascript
+import { cleanupMemory } from '@/lib/memoryManager';
+
+cleanupMemory(() => {
+  console.log('Cleanup complete');
+});
+```
+
+<ParamField path="callback" type="Function">
+  Optional callback to execute after cleanup
+</ParamField>
+
+<ResponseField name="return" type="void">
+  No return value
+</ResponseField>
+
+#### Implementation Notes
+
+- Attempts garbage collection if available
+- Executes callback after 0ms timeout (next tick)
+- Safe to call multiple times
+- Ignores GC errors
+
+---
+
+## Constants Reference
+
+Memory management uses these constants from `@/lib/constants.js`:
+
+```javascript
+// Memory thresholds
+export const LARGE_IMAGE_THRESHOLD = 10 * 1024 * 1024; // 10 MB
+export const MEMORY_WARNING_THRESHOLD = 500 * 1024 * 1024; // 500 MB
+
+// Memory management dimensions
+export const MEMORY_MAX_WIDTH = 1920;
+export const MEMORY_MAX_HEIGHT = 1080;
+
+// Quality and size settings
+export const MEMORY_COMPRESSION_QUALITY = 0.85;
+export const LOW_RES_PREVIEW_QUALITY = 0.5;
+export const PREVIEW_SIZE = 300; // pixels
+export const IMAGE_CHUNK_SIZE = 1024; // pixels
+
+// Memory calculation
+export const BYTES_PER_PIXEL_RGBA = 4;
+export const ESTIMATED_COMPRESSION_RATIO = 10;
+```
+
+## Best Practices
+
+### Large File Handling
+
+```javascript
+import { 
+  estimateImageMemoryUsage, 
+  createLowResPreview 
+} from '@/lib/memoryManager';
+import { LARGE_IMAGE_THRESHOLD, MEMORY_WARNING_THRESHOLD } from '@/lib/constants';
+
+async function handleLargeFile(file) {
+  // 1. Check if file is large
+  const isLarge = file.size > LARGE_IMAGE_THRESHOLD;
+  
+  // 2. Estimate memory usage
+  const estimatedMemory = estimateImageMemoryUsage(file);
+  
+  // 3. Warn user if needed
+  if (estimatedMemory > MEMORY_WARNING_THRESHOLD) {
+    console.warn('Large file may impact performance');
+  }
+  
+  // 4. Create appropriate preview
+  const preview = isLarge 
+    ? await createLowResPreview(file)  // Low-res for large files
+    : URL.createObjectURL(file);       // Full-res for small files
+  
+  return { file, preview, isLarge, estimatedMemory };
+}
+```
+
+### Memory Cleanup
+
+```javascript
+import { releaseObjectURLs } from '@/lib/memoryManager';
+
+function ImageGallery() {
+  const [previews, setPreviews] = useState([]);
+  
+  useEffect(() => {
+    // Cleanup on unmount
+    return () => {
+      releaseObjectURLs(previews);
+    };
+  }, [previews]);
+  
+  return (/* ... */);
+}
+```
+
+### Batch Processing with Memory Management
+
+```javascript
+import { 
+  estimateImageMemoryUsage,
+  compressImageForMemory,
+  cleanupMemory 
+} from '@/lib/memoryManager';
+import { UPLOAD_BATCH_SIZE } from '@/lib/constants';
+
+async function processBatch(files) {
+  const results = [];
+  
+  for (let i = 0; i < files.length; i += UPLOAD_BATCH_SIZE) {
+    const batch = files.slice(i, i + UPLOAD_BATCH_SIZE);
+    
+    // Process batch
+    const batchResults = await Promise.all(
+      batch.map(async (file) => {
+        const memory = estimateImageMemoryUsage(file);
+        
+        // Compress if needed
+        if (memory > MEMORY_WARNING_THRESHOLD) {
+          return compressImageForMemory(file);
+        }
+        
+        return file;
+      })
+    );
+    
+    results.push(...batchResults);
+    
+    // Cleanup between batches
+    cleanupMemory();
+    
+    // Give browser time to update
+    await new Promise(resolve => setTimeout(resolve, 10));
+  }
+  
+  return results;
+}
+```
+
+## Performance Tips
+
+1. **Always use low-res previews for files > 10 MB**
+   ```javascript
+   const preview = file.size > LARGE_IMAGE_THRESHOLD 
+     ? await createLowResPreview(file)
+     : URL.createObjectURL(file);
+   ```
+
+2. **Revoke object URLs when done**
+   ```javascript
+   useEffect(() => {
+     return () => releaseObjectURLs(previews);
+   }, [previews]);
+   ```
+
+3. **Process in batches (3-5 images at a time)**
+   ```javascript
+   const BATCH_SIZE = 3;
+   for (let i = 0; i < files.length; i += BATCH_SIZE) {
+     // Process batch...
+   }
+   ```
+
+4. **Monitor memory usage and warn users**
+   ```javascript
+   if (estimateImageMemoryUsage(file) > MEMORY_WARNING_THRESHOLD) {
+     message.warning('Large file may slow down processing');
+   }
+   ```

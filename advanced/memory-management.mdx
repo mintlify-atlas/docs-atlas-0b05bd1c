@@ -1,0 +1,440 @@
+---
+title: 'Memory Management'
+description: 'How memory management works for large files, low-res previews, and automatic cleanup'
+---
+
+## Overview
+
+PixelFlow includes a sophisticated memory management system designed to handle large image files efficiently without crashing the browser. The system automatically detects large images, creates low-resolution previews, estimates memory usage, and performs cleanup operations.
+
+<Note>
+  All memory management utilities are located in `src/lib/memoryManager.js`
+</Note>
+
+## Large Image Detection
+
+### Threshold Configuration
+
+Images are classified as "large" when they exceed **10 MB** in file size:
+
+```js src/lib/constants.js:28
+export const LARGE_IMAGE_THRESHOLD = 10 * 1024 * 1024; // 10 MB
+```
+
+### Detection in Practice
+
+The upload system automatically detects large images during processing:
+
+```js src/hooks/useImageUpload.js:62-73
+// Check if image exceeds threshold
+const isLargeImage = file.size > LARGE_IMAGE_THRESHOLD; // 10485760 bytes
+
+// Create appropriate preview based on size
+let preview;
+if (isLargeImage) {
+  // Large images get low-res preview to save memory
+  preview = await createLowResPreview(file);
+} else {
+  // Normal images get standard preview
+  preview = getImagePreview(file);
+}
+```
+
+<Warning>
+  Large images can consume **10-20x** their file size in uncompressed memory. A 50MB JPEG could use up to 1GB of RAM when loaded into a canvas!
+</Warning>
+
+## Low-Resolution Previews
+
+### Preview Generation
+
+For large images, PixelFlow creates a low-resolution preview using `createLowResPreview()`:
+
+```js src/lib/memoryManager.js:144-194
+export const createLowResPreview = (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = (event) => {
+      const img = new Image();
+
+      img.onload = () => {
+        let width, height;
+
+        // Resize to max 300px on longest side
+        if (img.width > img.height) {
+          width = PREVIEW_SIZE;  // 300
+          height = Math.round((img.height * PREVIEW_SIZE) / img.width);
+        } else {
+          height = PREVIEW_SIZE; // 300
+          width = Math.round((img.width * PREVIEW_SIZE) / img.height);
+        }
+
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = width;
+        canvas.height = height;
+
+        // Draw resized image
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Convert to data URL with 50% quality
+        const dataUrl = canvas.toDataURL('image/jpeg', LOW_RES_PREVIEW_QUALITY);
+
+        // Cleanup
+        URL.revokeObjectURL(img.src);
+        img.src = '';
+
+        resolve(dataUrl);
+      };
+
+      img.src = event.target.result;
+    };
+
+    reader.readAsDataURL(file);
+  });
+};
+```
+
+### Preview Configuration
+
+<CodeGroup>
+```js Preview Size
+// Maximum dimension of preview (pixels)
+export const PREVIEW_SIZE = 300;
+```
+
+```js Preview Quality
+// JPEG quality for low-res previews (0-1)
+export const LOW_RES_PREVIEW_QUALITY = 0.5;
+```
+</CodeGroup>
+
+<Tip>
+  Preview images use **data URLs** instead of blob URLs to avoid memory leaks from unreleased object URLs.
+</Tip>
+
+## Memory Estimation
+
+### Calculation Method
+
+PixelFlow estimates memory usage using two approaches:
+
+```js src/lib/memoryManager.js:127-137
+export const estimateImageMemoryUsage = (file, imageWidth = 0, imageHeight = 0) => {
+  // Method 1: If dimensions are known
+  if (imageWidth > 0 && imageHeight > 0) {
+    // Each pixel needs 4 bytes (RGBA)
+    return imageWidth * imageHeight * BYTES_PER_PIXEL_RGBA;
+  }
+
+  // Method 2: Estimate from file size
+  // Uncompressed images can be 10-20x larger in memory
+  return file.size * ESTIMATED_COMPRESSION_RATIO;
+};
+```
+
+### Memory Constants
+
+```js src/lib/constants.js:34-37
+// Bytes per pixel in RGBA format
+export const BYTES_PER_PIXEL_RGBA = 4;
+
+// Compression ratio for file size → memory estimation
+export const ESTIMATED_COMPRESSION_RATIO = 10;
+```
+
+### Example Calculations
+
+| File Size | Dimensions | Estimated Memory |
+|-----------|------------|------------------|
+| 5 MB | Unknown | 50 MB (5 × 10) |
+| 8 MB | 4000×3000 | 48 MB (4000 × 3000 × 4 bytes) |
+| 20 MB | Unknown | 200 MB (20 × 10) |
+| 15 MB | 6000×4000 | 96 MB (6000 × 4000 × 4 bytes) |
+
+### Memory Warnings
+
+The system warns users when estimated memory exceeds **500 MB**:
+
+```js src/lib/constants.js:31
+export const MEMORY_WARNING_THRESHOLD = 500 * 1024 * 1024; // 500 MB
+```
+
+```js src/hooks/useImageUpload.js:76-81
+const estimatedMemory = estimateImageMemoryUsage(file);
+const memoryWarning = estimatedMemory > MEMORY_WARNING_THRESHOLD;
+
+if (memoryWarning) {
+  logger.warn(`Large image detected: ${file.name}. May affect performance.`);
+}
+```
+
+## Memory Compression
+
+### Compression for Memory Conservation
+
+The `compressImageForMemory()` function reduces image dimensions to conserve memory:
+
+```js src/lib/memoryManager.js:56-118
+export const compressImageForMemory = async (file, options = {}) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = (event) => {
+      const img = new Image();
+
+      img.onload = () => {
+        // Max dimensions for memory conservation
+        const MAX_WIDTH = options.maxWidth || MEMORY_MAX_WIDTH;   // 1920
+        const MAX_HEIGHT = options.maxHeight || MEMORY_MAX_HEIGHT; // 1080
+
+        let width = img.width;
+        let height = img.height;
+
+        // Resize if necessary to conserve memory
+        if (width > MAX_WIDTH || height > MAX_HEIGHT) {
+          if (width > height) {
+            height = Math.round((height * MAX_WIDTH) / width);
+            width = MAX_WIDTH;
+          } else {
+            width = Math.round((width * MAX_HEIGHT) / height);
+            height = MAX_HEIGHT;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = width;
+        canvas.height = height;
+
+        // Draw resized image
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Convert to blob with compression
+        canvas.toBlob(
+          (blob) => {
+            // Cleanup
+            URL.revokeObjectURL(img.src);
+            img.src = '';
+
+            resolve(blob);
+          },
+          file.type,
+          options.quality || MEMORY_COMPRESSION_QUALITY // 0.85
+        );
+      };
+
+      img.src = event.target.result;
+    };
+
+    reader.readAsDataURL(file);
+  });
+};
+```
+
+### Compression Configuration
+
+```js src/lib/constants.js:86-89
+// Maximum dimensions for memory-compressed images
+export const MEMORY_MAX_WIDTH = 1920;
+export const MEMORY_MAX_HEIGHT = 1080;
+
+// Compression quality (0-1)
+export const MEMORY_COMPRESSION_QUALITY = 0.85;
+```
+
+## Cleanup Operations
+
+### Object URL Cleanup
+
+PixelFlow automatically releases blob URLs to prevent memory leaks:
+
+```js src/lib/memoryManager.js:21-33
+export const releaseObjectURLs = (urls = []) => {
+  if (!urls || !Array.isArray(urls)) return;
+
+  urls.forEach((url) => {
+    if (url && url.startsWith('blob:')) {
+      try {
+        URL.revokeObjectURL(url);
+      } catch (error) {
+        logger.error('Error releasing object URL:', error);
+      }
+    }
+  });
+};
+```
+
+### Cleanup on Image Removal
+
+When images are removed, their object URLs are automatically released:
+
+```js src/hooks/useImageUpload.js:130-146
+const removeImage = (id) => {
+  const imageToRemove = uploadedImages.find((img) => img.id === id);
+
+  // Release resources if exists
+  if (imageToRemove && imageToRemove.preview && !imageToRemove.isLargeImage) {
+    // Only revoke URL if not a large image (low-res preview)
+    try {
+      URL.revokeObjectURL(imageToRemove.preview);
+    } catch (error) {
+      logger.error('Error releasing preview URL:', error);
+    }
+  }
+
+  // Remove from state
+  setUploadedImages((prev) => prev.filter((img) => img.id !== id));
+};
+```
+
+<Note>
+  Low-resolution previews use **data URLs** (not blob URLs), so they don't require explicit cleanup.
+</Note>
+
+### Bulk Cleanup
+
+```js src/hooks/useImageUpload.js:151-165
+const clearImages = () => {
+  // Release all object URL resources
+  uploadedImages.forEach((img) => {
+    if (img.preview && !img.isLargeImage) {
+      try {
+        URL.revokeObjectURL(img.preview);
+      } catch (error) {
+        logger.error('Error releasing preview URL:', error);
+      }
+    }
+  });
+
+  // Clear state
+  setUploadedImages([]);
+};
+```
+
+## Advanced: Image Chunking
+
+For extremely large images, PixelFlow can split them into smaller chunks:
+
+```js src/lib/memoryManager.js:203-250
+export const splitImageIntoChunks = (image, chunkSize = IMAGE_CHUNK_SIZE) => {
+  const chunks = [];
+  const width = image.width;
+  const height = image.height;
+
+  // Calculate number of rows and columns
+  const cols = Math.ceil(width / chunkSize);   // chunkSize = 1024px
+  const rows = Math.ceil(height / chunkSize);
+
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      // Determine chunk dimensions
+      const chunkWidth = Math.min(chunkSize, width - col * chunkSize);
+      const chunkHeight = Math.min(chunkSize, height - row * chunkSize);
+
+      // Create canvas for chunk
+      const canvas = document.createElement('canvas');
+      canvas.width = chunkWidth;
+      canvas.height = chunkHeight;
+
+      const ctx = canvas.getContext('2d');
+
+      // Draw portion of image
+      ctx.drawImage(
+        image,
+        col * chunkSize,
+        row * chunkSize,
+        chunkWidth,
+        chunkHeight,
+        0,
+        0,
+        chunkWidth,
+        chunkHeight
+      );
+
+      // Save chunk info
+      chunks.push({
+        canvas,
+        x: col * chunkSize,
+        y: row * chunkSize,
+        width: chunkWidth,
+        height: chunkHeight,
+      });
+    }
+  }
+
+  return chunks;
+};
+```
+
+### Chunk Size
+
+```js src/lib/constants.js:95
+// Size of each chunk when splitting large images (pixels)
+export const IMAGE_CHUNK_SIZE = 1024;
+```
+
+<Tip>
+  Chunking is useful for processing images larger than 10,000×10,000 pixels that might exceed canvas size limits.
+</Tip>
+
+## Garbage Collection
+
+While JavaScript garbage collection is automatic, PixelFlow provides a helper for debugging:
+
+```js src/lib/memoryManager.js:40-48
+export const forceGarbageCollection = () => {
+  if (window.gc) {
+    try {
+      window.gc();
+    } catch (e) {
+      logger.log('Could not force garbage collection');
+    }
+  }
+};
+```
+
+<Warning>
+  `window.gc()` only works in Chrome/Edge when launched with `--js-flags="--expose-gc"`. It's not available in production builds.
+</Warning>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Monitor File Sizes" icon="gauge">
+    Always check file sizes before processing. Files >50MB may cause performance issues.
+  </Card>
+  
+  <Card title="Use Previews" icon="image">
+    Display low-res previews for large images instead of full-resolution thumbnails.
+  </Card>
+  
+  <Card title="Clean Up URLs" icon="broom">
+    Always call `URL.revokeObjectURL()` when done with blob URLs to prevent memory leaks.
+  </Card>
+  
+  <Card title="Batch Processing" icon="layer-group">
+    Process images in small batches (3-5 at a time) to avoid overwhelming browser memory.
+  </Card>
+</CardGroup>
+
+## Memory Management Checklist
+
+- Use `LARGE_IMAGE_THRESHOLD` (10MB) to detect large files
+- Create low-res previews with `createLowResPreview()` for large images
+- Estimate memory usage with `estimateImageMemoryUsage()`
+- Warn users when estimated memory exceeds `MEMORY_WARNING_THRESHOLD` (500MB)
+- Compress images with `compressImageForMemory()` when needed
+- Always release blob URLs with `URL.revokeObjectURL()`
+- Process images in batches using `UPLOAD_BATCH_SIZE` (3 images)
+- Consider chunking for images exceeding 10,000×10,000 pixels
+
+## Implementation Reference
+
+- **Memory Manager**: `src/lib/memoryManager.js`
+- **Constants**: `src/lib/constants.js`
+- **Upload Hook**: `src/hooks/useImageUpload.js`
+- **Logger**: `src/lib/logger.js`

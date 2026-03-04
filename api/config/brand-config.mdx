@@ -1,0 +1,186 @@
+---
+title: 'Brand Configuration'
+description: 'Customize the appearance and branding of PixelFlow'
+icon: 'palette'
+---
+
+## Overview
+
+The `brandConfig` object allows you to customize the appearance and branding of PixelFlow. All settings are configurable through the `src/config/brandConfig.js` file and can be modified at runtime through the Brand Configuration Panel in the UI.
+
+Settings are persisted to `localStorage` under the key `pixelflow_brand_settings`.
+
+## Configuration Structure
+
+### Application Identity
+
+<ParamField path="appName" type="string" default="PixelFlow">
+  The name of your application or company. This is displayed in the header when no logo is provided.
+</ParamField>
+
+<ParamField path="logoUrl" type="string | null" default="null">
+  URL to your logo image. Can be a relative path (e.g., `/logo.png`) or absolute URL (e.g., `https://example.com/logo.png`). Set to `null` to display the app name instead.
+</ParamField>
+
+<ParamField path="logoWidth" type="number" default="40">
+  Width of the logo in pixels.
+</ParamField>
+
+<ParamField path="logoHeight" type="number" default="40">
+  Height of the logo in pixels.
+</ParamField>
+
+### Color Palette
+
+All color values are defined in the `colors` object using hexadecimal format.
+
+<ParamField path="colors.primary" type="string" default="#a855f7">
+  Primary brand color used for buttons, switches, and interactive elements. Default is violet.
+</ParamField>
+
+<ParamField path="colors.secondary" type="string" default="#818cf8">
+  Secondary accent color. Default is light violet.
+</ParamField>
+
+<ParamField path="colors.background" type="string" default="#f5f5f5">
+  Main application background color. Default is light gray.
+</ParamField>
+
+<ParamField path="colors.headerBackground" type="string" default="#ffffff">
+  Header background color. Default is white.
+</ParamField>
+
+<ParamField path="colors.footerBackground" type="string" default="#ffffff">
+  Footer background color. Default is white.
+</ParamField>
+
+<ParamField path="colors.textPrimary" type="string" default="#000000">
+  Primary text color used for headings and main content. Default is black.
+</ParamField>
+
+<ParamField path="colors.textSecondary" type="string" default="#6b7280">
+  Secondary text color used for descriptions and less prominent text. Default is gray.
+</ParamField>
+
+### Theme Settings
+
+<ParamField path="theme.borderRadius" type="number" default="8">
+  Border radius in pixels applied to cards, buttons, and other UI elements.
+</ParamField>
+
+<ParamField path="theme.fontFamily" type="string" default="Segoe UI, system-ui, sans-serif">
+  CSS font-family value for the primary application font.
+</ParamField>
+
+## Usage Examples
+
+### Basic Configuration
+
+```javascript
+const brandConfig = {
+  appName: 'PixelFlow',
+  logoUrl: null,
+  logoWidth: 40,
+  logoHeight: 40,
+  colors: {
+    primary: '#a855f7',
+    secondary: '#818cf8',
+    background: '#f5f5f5',
+    headerBackground: '#ffffff',
+    footerBackground: '#ffffff',
+    textPrimary: '#000000',
+    textSecondary: '#6b7280',
+  },
+  theme: {
+    borderRadius: 8,
+    fontFamily: 'Segoe UI, system-ui, sans-serif',
+  },
+};
+```
+
+### Custom Branding Example
+
+```javascript
+const brandConfig = {
+  appName: 'MyCompany ImageTools',
+  logoUrl: '/assets/logo.png',
+  logoWidth: 120,
+  logoHeight: 40,
+  colors: {
+    primary: '#0066cc',
+    secondary: '#0099ff',
+    background: '#ffffff',
+    headerBackground: '#f8f9fa',
+    footerBackground: '#f8f9fa',
+    textPrimary: '#212529',
+    textSecondary: '#6c757d',
+  },
+  theme: {
+    borderRadius: 12,
+    fontFamily: 'Inter, system-ui, sans-serif',
+  },
+};
+```
+
+### Accessing Configuration in Components
+
+Use the `useBrand()` hook to access and modify brand settings:
+
+```javascript
+import { useBrand } from '@/context/BrandContext';
+
+function MyComponent() {
+  const { brandSettings, updateBrandSettings } = useBrand();
+
+  // Access current settings
+  const primaryColor = brandSettings.colors.primary;
+  const appName = brandSettings.appName;
+
+  // Update settings
+  const handleColorChange = (newColor) => {
+    updateBrandSettings({
+      colors: {
+        ...brandSettings.colors,
+        primary: newColor,
+      },
+    });
+  };
+
+  return (
+    <div style={{ color: primaryColor }}>
+      {appName}
+    </div>
+  );
+}
+```
+
+## Integration with BrandContext
+
+The brand configuration is managed through the `BrandContext` provider, which:
+
+- Loads initial settings from `brandConfig.js`
+- Persists changes to `localStorage` (key: `pixelflow_brand_settings`)
+- Provides the `useBrand()` hook for component access
+- Supports runtime updates through the Brand Configuration Panel
+
+### Provider Setup
+
+```javascript
+import BrandProvider from '@/context/BrandContext';
+
+function App() {
+  return (
+    <BrandProvider>
+      {/* Your app components */}
+    </BrandProvider>
+  );
+}
+```
+
+## File Location
+
+**Source:** `src/config/brandConfig.js`
+
+**Context Provider:** `src/context/BrandContext.jsx`
+
+**UI Panel:** `src/components/Common/BrandConfigPanel.jsx`

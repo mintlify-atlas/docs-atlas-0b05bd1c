@@ -1,0 +1,219 @@
+---
+title: 'Uploading Images'
+description: 'Learn how to upload images to PixelFlow, including supported formats, file size limits, and batch upload capabilities'
+icon: 'cloud-arrow-up'
+---
+
+## Overview
+
+PixelFlow supports uploading multiple images for batch processing directly in your browser. All uploads are processed client-side, meaning your images never leave your device.
+
+## Supported Formats
+
+PixelFlow accepts the following image formats:
+
+<CardGroup cols={2}>
+  <Card title="JPEG" icon="file-image">
+    Common format for photos and web images
+  </Card>
+  <Card title="PNG" icon="file-image">
+    Lossless format with transparency support
+  </Card>
+  <Card title="GIF" icon="file-image">
+    Animated images and simple graphics
+  </Card>
+  <Card title="WEBP" icon="file-image">
+    Modern format with superior compression
+  </Card>
+</CardGroup>
+
+## File Size Limits
+
+<Note>
+  Maximum file size: **60 MB** per image
+</Note>
+
+### Large File Handling
+
+PixelFlow automatically detects and optimizes large images:
+
+- **Images over 10 MB** are treated as "large images" and receive special handling
+- Low-resolution previews are created automatically to improve performance
+- Warning alerts appear when files exceed 30 MB
+- Memory usage is estimated and monitored to prevent browser crashes
+
+Reference: `src/hooks/useImageUpload.js:62` and `src/lib/constants.js:28`
+
+## How to Upload Images
+
+<Steps>
+  <Step title="Access the Upload Area">
+    Navigate to the main interface where you'll see the upload area with a drag-and-drop zone.
+  </Step>
+  
+  <Step title="Choose Your Upload Method">
+    You have two options:
+    - **Drag and drop** images directly into the upload zone
+    - **Click to browse** and select files from your file system
+  </Step>
+  
+  <Step title="Select Multiple Images">
+    You can upload up to **50 images** at once. The system will process them in batches of 3 for optimal performance.
+    
+    Reference: `src/components/ImageUploader/UploadArea.jsx:18` and `src/lib/constants.js:12`
+  </Step>
+  
+  <Step title="Wait for Processing">
+    The upload progress indicator will show:
+    - Current batch being processed (e.g., "Processing images 1-3 of 15...")
+    - Progress updates appear when uploading more than 5 images
+    - Success message when all images are loaded
+  </Step>
+</Steps>
+
+## Batch Upload Process
+
+### Performance Optimization
+
+Images are processed in batches to prevent memory issues and browser freezing:
+
+```javascript
+// From src/lib/constants.js
+UPLOAD_BATCH_SIZE = 3  // Images processed simultaneously
+UPLOAD_PROGRESS_THRESHOLD = 5  // Show progress indicator
+```
+
+### What Happens During Upload
+
+<Accordion title="Image Validation">
+  Each image is validated for:
+  - **File type** - Must be JPEG, PNG, GIF, or WEBP
+  - **File size** - Must be under 60 MB
+  - **Duplicate detection** - Prevents uploading the same file twice
+  
+  Reference: `src/components/ImageUploader/UploadArea.jsx:25-44`
+</Accordion>
+
+<Accordion title="Preview Generation">
+  PixelFlow creates previews based on image size:
+  - **Normal images** (< 10 MB): Full-quality preview using `URL.createObjectURL()`
+  - **Large images** (> 10 MB): Low-resolution preview (300px max dimension) at 50% quality
+  
+  This ensures smooth performance even with large files.
+  
+  Reference: `src/hooks/useImageUpload.js:65-73`
+</Accordion>
+
+<Accordion title="Memory Management">
+  The system estimates memory usage for each image:
+  ```javascript
+  estimatedMemory = fileSize × ESTIMATED_COMPRESSION_RATIO × BYTES_PER_PIXEL_RGBA
+  ```
+  
+  If estimated memory exceeds **500 MB**, a warning is logged. The app uses low-resolution previews to stay within safe limits.
+  
+  Reference: `src/lib/constants.js:31-37`
+</Accordion>
+
+## Upload Limitations
+
+<Warning>
+  **Maximum images per upload:** 50 files
+  
+  If you need to process more than 50 images, upload them in separate batches.
+</Warning>
+
+### Browser Considerations
+
+Since PixelFlow runs entirely in the browser:
+
+- Available RAM affects how many large images you can process
+- Chrome/Edge recommended for best performance with large batches
+- Mobile browsers may have stricter memory limits
+
+## Error Handling
+
+### Common Upload Errors
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| "Only image files allowed" | Unsupported file type | Use JPEG, PNG, GIF, or WEBP |
+| "File exceeds maximum size" | File over 60 MB | Compress the image before uploading |
+| "Error processing image" | Corrupted file | Try a different image or repair the file |
+
+### Large File Warnings
+
+<Info>
+  When uploading files over 30 MB, you'll see:
+  
+  **"Large files detected"** - Processing may be slower. Optimized previews have been created for better performance.
+  
+  Reference: `src/components/ImageUploader/UploadArea.jsx:81-92`
+</Info>
+
+## Code Implementation
+
+### Upload Hook Structure
+
+The `useImageUpload` hook manages the entire upload process:
+
+```javascript
+const {
+  uploadedImages,    // Array of uploaded image objects
+  loading,           // Boolean: upload in progress
+  handleUpload,      // Function to process new files
+  removeImage,       // Function to remove single image
+  clearImages,       // Function to remove all images
+} = useImageUpload();
+```
+
+### Image Object Structure
+
+Each uploaded image is stored with the following properties:
+
+```javascript
+{
+  id: 'img-1234567890-0',      // Unique identifier
+  file: File,                   // Original File object
+  name: 'photo.jpg',            // Original filename
+  size: 2048576,                // File size in bytes
+  type: 'image/jpeg',           // MIME type
+  preview: 'blob:https://...',  // Preview URL
+  originalName: 'photo.jpg',    // Preserved original name
+  isLargeImage: false,          // True if > 10 MB
+}
+```
+
+Reference: `src/hooks/useImageUpload.js:84-93`
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Optimize Before Upload" icon="gauge-high">
+    For files over 30 MB, consider pre-processing them to reduce upload and processing time.
+  </Card>
+  
+  <Card title="Batch Similar Images" icon="layer-group">
+    Upload images that need the same processing operations together for efficiency.
+  </Card>
+  
+  <Card title="Monitor Memory" icon="memory">
+    Close other browser tabs when processing many large images to free up memory.
+  </Card>
+  
+  <Card title="Check File Names" icon="file-signature">
+    Use clean filenames without special characters for best compatibility with renaming features.
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Process Images" icon="gears" href="/processing/batch-operations">
+    Learn how to optimize, resize, crop, and convert your uploaded images
+  </Card>
+  
+  <Card title="Rename Files" icon="edit" href="/file-management/renaming">
+    Use batch renaming tools to organize your images with sequential names or custom patterns
+  </Card>
+</CardGroup>

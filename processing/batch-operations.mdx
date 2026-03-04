@@ -1,0 +1,516 @@
+---
+title: 'Batch Operations'
+description: 'How batch processing works and the order of operations in PixelFlow'
+icon: 'layer-group'
+---
+
+## Overview
+
+PixelFlow processes images in batches to optimize performance and memory usage. Understanding the processing pipeline and batch behavior is essential for efficient image processing.
+
+<Info>
+  All image processing happens client-side in the browser. No data is sent to external servers.
+</Info>
+
+## Processing Pipeline Order
+
+PixelFlow applies operations in a specific order to ensure optimal results:
+
+<Steps>
+  <Step title="1. Optimization">
+    Compress the image to reduce file size (max 1MB, max 1920px dimension).
+    
+    **Why first?** Smaller files process faster in subsequent steps.
+  </Step>
+  
+  <Step title="2. Resize">
+    Change image dimensions using pixels or percentages.
+    
+    **Why second?** Resizing after optimization works with smaller files. Resizing before cropping ensures crop dimensions match the resized image.
+  </Step>
+  
+  <Step title="3. Crop">
+    Extract a specific region from the image with position control.
+    
+    **Why third?** Cropping after resizing ensures dimensions are relative to the resized image, not the original.
+  </Step>
+  
+  <Step title="4. Format Conversion">
+    Convert to target format (JPG, PNG, WEBP, GIF).
+    
+    **Why last?** All transformations are complete before encoding to the final format.
+  </Step>
+</Steps>
+
+<Warning>
+  This order is enforced by the pipeline and cannot be changed. It's designed for optimal quality and performance.
+</Warning>
+
+## Pipeline Implementation
+
+Here's how the pipeline is implemented in `useImageProcessor.js`:
+
+```javascript
+// Process each image through the pipeline
+const processImage = async (img) => {
+  let processedFile = img.file;
+  let fileChanged = false;
+
+  // 1. OPTIMIZATION (if enabled)
+  if (processingSettings.optimize) {
+    processedFile = await optimizeImage(processedFile, {
+      maxSizeMB: OPTIMIZE_MAX_SIZE_MB,           // 1 MB
+      maxWidthOrHeight: OPTIMIZE_MAX_DIMENSION,  // 1920px
+      useWebWorker: true,
+    });
+    fileChanged = true;
+    logger.log('Imagen optimizada');
+  }
+
+  // 2. RESIZE (if enabled)
+  if (processingSettings.resize.enabled) {
+    // Calculate dimensions (handle percentage mode)
+    let resizeDimensions = {
+      width: processingSettings.resize.width,
+      height: processingSettings.resize.height,
+    };
+
+    if (processingSettings.resize.unit === '%') {
+      const dimensions = await calculatePercentageDimensions(
+        processedFile,
+        processingSettings.resize.width,
+        processingSettings.resize.maintainAspectRatio
+      );
+      resizeDimensions = dimensions;
+    }
+
+    processedFile = await resizeImage(
+      processedFile,
+      resizeDimensions.width,
+      resizeDimensions.height,
+      processingSettings.resize.maintainAspectRatio
+    );
+    fileChanged = true;
+    logger.log(`Imagen redimensionada a ${resizeDimensions.width}x${resizeDimensions.height}`);
+  }
+
+  // 3. CROP (if enabled)
+  if (processingSettings.crop.enabled) {
+    const cropWidth = processingSettings.crop.width;
+    const cropHeight = processingSettings.crop.height;
+
+    processedFile = await cropImage(
+      processedFile,
+      cropWidth,
+      cropHeight,
+      processingSettings.crop.position || 'center'
+    );
+    fileChanged = true;
+    logger.log(`Imagen recortada a ${cropWidth}x${cropHeight}`);
+  }
+
+  // 4. FORMAT CONVERSION (if not 'original')
+  if (processingSettings.format !== 'original') {
+    processedFile = await convertImageFormat(
+      processedFile,
+      processingSettings.format
+    );
+    fileChanged = true;
+    logger.log(`Formato convertido a ${processingSettings.format}`);
+  }
+
+  return { processedFile, fileChanged };
+};
+```
+
+## Batch Processing
+
+PixelFlow processes images in configurable batch sizes to balance performance and memory usage.
+
+### Batch Size Constants
+
+Defined in `src/lib/constants.js`:
+
+```javascript
+/** Number of images to load simultaneously in each upload batch */
+export const UPLOAD_BATCH_SIZE = 3;
+
+/** Number of images to process simultaneously in each processing batch */
+export const PROCESSING_BATCH_SIZE = 3;
+
+/** Number of images to prepare simultaneously in each download batch */
+export const DOWNLOAD_BATCH_SIZE = 5;
+```
+
+### Why Batch Processing?
+
+<AccordionGroup>
+  <Accordion title="Memory management">
+    Processing all images at once could consume excessive memory, especially with large files. Batching limits concurrent operations:
+    
+    ```javascript
+    // Instead of this (memory intensive):
+    const all = await Promise.all(images.map(process));
+    
+    // Do this (controlled memory):
+    for (let i = 0; i < images.length; i += BATCH_SIZE) {
+      const batch = images.slice(i, i + BATCH_SIZE);
+      const results = await Promise.all(batch.map(process));
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Browser responsiveness">
+    Processing too many images simultaneously can freeze the UI. Batching ensures the browser remains responsive:
+    
+    - **Upload batch**: 3 images load at once
+    - **Processing batch**: 3 images process at once
+    - **Download batch**: 5 images prepare at once
+    
+    The browser can update progress indicators between batches.
+  </Accordion>
+  
+  <Accordion title="Error isolation">
+    If one batch fails, other batches can still succeed:
+    
+    ```javascript
+    try {
+      const batchResults = await Promise.all(
+        batch.map(async (img) => {
+          try {
+            return await processImage(img);
+          } catch (error) {
+            logger.error(`Error processing ${img.name}:`, error);
+            return { ...img, error: error.message };
+          }
+        })
+      );
+      processedResults.push(...batchResults);
+    } catch (error) {
+      logger.error('Batch processing error:', error);
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Batch Processing Implementation
+
+```javascript
+const processImages = async () => {
+  setProcessing(true);
+  
+  const BATCH_SIZE = PROCESSING_BATCH_SIZE; // 3
+  const processedResults = [];
+
+  try {
+    // Divide images into batches
+    for (let i = 0; i < uploadedImages.length; i += BATCH_SIZE) {
+      const batch = uploadedImages.slice(i, i + BATCH_SIZE);
+
+      // Process current batch (3 images in parallel)
+      const batchResults = await Promise.all(
+        batch.map(async (img) => {
+          try {
+            let processedFile = img.file;
+            
+            // Run through pipeline...
+            if (processingSettings.optimize) {
+              processedFile = await optimizeImage(processedFile);
+            }
+            
+            if (processingSettings.resize.enabled) {
+              processedFile = await resizeImage(processedFile, width, height);
+            }
+            
+            if (processingSettings.crop.enabled) {
+              processedFile = await cropImage(processedFile, cropW, cropH);
+            }
+            
+            if (processingSettings.format !== 'original') {
+              processedFile = await convertImageFormat(processedFile, format);
+            }
+            
+            return createProcessedImageObject(img, processedFile);
+          } catch (error) {
+            logger.error(`Error processing ${img.name}:`, error);
+            return { ...img, error: error.message };
+          }
+        })
+      );
+
+      // Add batch results to final array
+      processedResults.push(...batchResults);
+    }
+
+    setProcessedImages(processedResults);
+  } catch (error) {
+    logger.error('Error in batch processing:', error);
+  } finally {
+    setProcessing(false);
+  }
+};
+```
+
+## Processing Stages
+
+PixelFlow's data flow through three main stages:
+
+<Steps>
+  <Step title="Upload Stage">
+    Images are loaded from disk in batches of **3**.
+    
+    ```javascript
+    // Managed by useImageUpload hook
+    const uploadedImages = [
+      { id, name, file, preview, size, formattedSize, ... }
+    ];
+    ```
+    
+    **Features:**
+    - Large file detection (>10MB → low-res preview)
+    - Memory estimation and warnings
+    - Automatic URL.createObjectURL for previews
+  </Step>
+  
+  <Step title="Processing Stage">
+    Images are processed through the pipeline in batches of **3**.
+    
+    ```javascript
+    // Managed by useImageProcessor hook
+    const processedImages = [
+      { 
+        ...uploadedImage,
+        processed: true,
+        processedFile,
+        processedPreview,
+        processedSize,
+        optimization: { originalSize, newSize, reduction, reductionPercent },
+        ... 
+      }
+    ];
+    ```
+    
+    **Pipeline:** Optimization → Resize → Crop → Format Conversion
+  </Step>
+  
+  <Step title="Download Stage">
+    Images are prepared for download in batches of **5**.
+    
+    ```javascript
+    // Managed by useImageRename hook + DownloadButton
+    const renamedImages = [
+      { ...processedImage, finalName: 'renamed_file.jpg' }
+    ];
+    ```
+    
+    **Features:**
+    - Individual downloads
+    - ZIP batch downloads (using JSZip)
+    - Reactive renaming (sequential, add text, replace text)
+  </Step>
+</Steps>
+
+## Manual vs. Automatic Processing
+
+<Warning>
+  Processing is **manual** by design. Images are not processed automatically on upload.
+</Warning>
+
+### Manual Trigger
+
+```javascript
+const { processImages, processing } = useImageProcessor(uploadedImages);
+
+// User clicks "Process Images" button
+<Button onClick={processImages} loading={processing}>
+  Procesar Imágenes
+</Button>
+```
+
+**Why manual?**
+- Users can adjust settings before processing
+- Prevents unnecessary processing if settings need to be changed
+- Better control over when expensive operations run
+- Clear separation between upload and processing stages
+
+### Reactive Renaming
+
+Renaming **is** automatic (reactive) after processing:
+
+```javascript
+// useImageRename hook automatically applies rename rules
+useEffect(() => {
+  if (!processedImages || processedImages.length === 0) {
+    setRenamedImages([]);
+    return;
+  }
+
+  // Apply rename rules automatically
+  const renamed = applyRenameRules(processedImages, renameSettings);
+  setRenamedImages(renamed);
+}, [processedImages, renameSettings]);
+```
+
+## Performance Optimization Tips
+
+<AccordionGroup>
+  <Accordion title="Optimize large images first">
+    If processing images >5MB, enable optimization to reduce file sizes before other operations:
+    
+    ```javascript
+    // Large images benefit most from optimization
+    toggleOptimize(); // Enable
+    processImages();
+    ```
+  </Accordion>
+  
+  <Accordion title="Adjust batch sizes for your hardware">
+    The default batch sizes work well on most systems, but you can adjust them in `constants.js`:
+    
+    ```javascript
+    // For slower systems (more conservative):
+    export const PROCESSING_BATCH_SIZE = 2;
+    
+    // For powerful systems (more aggressive):
+    export const PROCESSING_BATCH_SIZE = 5;
+    ```
+  </Accordion>
+  
+  <Accordion title="Use Web Workers for optimization">
+    The optimization step uses Web Workers by default (`useWebWorker: true`). This runs compression in background threads, keeping the UI responsive.
+    
+    Never disable this unless you have a specific reason:
+    ```javascript
+    // Default (good):
+    await optimizeImage(file, { useWebWorker: true });
+    
+    // Not recommended:
+    await optimizeImage(file, { useWebWorker: false });
+    ```
+  </Accordion>
+  
+  <Accordion title="Monitor memory usage">
+    PixelFlow estimates memory usage and warns when it exceeds 500MB:
+    
+    ```javascript
+    // Memory threshold
+    export const MEMORY_WARNING_THRESHOLD = 500 * 1024 * 1024; // 500 MB
+    
+    // Triggered when total estimated memory exceeds threshold
+    if (estimatedMemory > MEMORY_WARNING_THRESHOLD) {
+      // Warning shown to user
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Error Handling in Batches
+
+Each batch operation includes error handling:
+
+```javascript
+const batchResults = await Promise.all(
+  batch.map(async (img) => {
+    try {
+      // Process image through pipeline
+      return await processImagePipeline(img);
+    } catch (error) {
+      logger.error(`Error processing ${img.name}:`, error);
+      
+      // Return original image with error flag
+      return {
+        ...img,
+        processed: true,
+        processedPreview: img.preview,
+        processedFile: img.file,
+        processedSize: img.size,
+        formattedProcessedSize: formatFileSize(img.size),
+        newName: img.name,
+        fileChanged: false,
+        error: error.message,  // Error info preserved
+      };
+    }
+  })
+);
+```
+
+<Note>
+  Errors in individual images don't stop the entire batch. Failed images return the original file with an error flag.
+</Note>
+
+## Processing Statistics
+
+After processing, each image includes optimization statistics:
+
+```javascript
+processedImage.optimization = {
+  originalSize: 5242880,        // Original size in bytes (5 MB)
+  newSize: 1048576,             // New size in bytes (1 MB)
+  reduction: 4194304,           // Bytes saved (4 MB)
+  reductionPercent: "80.00"     // Percentage saved (80%)
+};
+```
+
+Use these statistics to show users the impact of processing:
+
+```javascript
+const totalSaved = processedImages.reduce(
+  (sum, img) => sum + img.optimization.reduction,
+  0
+);
+
+console.log(`Total space saved: ${formatFileSize(totalSaved)}`);
+```
+
+## Complete Data Flow Diagram
+
+```
+User selects files
+       ↓
+[UPLOAD STAGE] (batch: 3)
+  - Read files
+  - Create previews
+  - Detect large files (>10MB)
+  - Estimate memory
+       ↓
+uploadedImages: [{ file, preview, size, ... }]
+       ↓
+User clicks "Process"
+       ↓
+[PROCESSING STAGE] (batch: 3)
+  For each image:
+    1. Optimize (if enabled)
+    2. Resize (if enabled)
+    3. Crop (if enabled)
+    4. Convert format (if not 'original')
+       ↓
+processedImages: [{ processedFile, processedPreview, optimization, ... }]
+       ↓
+[RENAME STAGE] (automatic/reactive)
+  - Apply sequential numbering
+  - Add prefix/suffix text
+  - Replace text patterns
+       ↓
+renamedImages: [{ finalName, ... }]
+       ↓
+[DOWNLOAD STAGE] (batch: 5)
+  - Individual downloads
+  - ZIP archive (batch)
+```
+
+## Related Topics
+
+<CardGroup cols={2}>
+  <Card title="Optimization" icon="gauge-high" href="/processing/optimization">
+    Step 1 of the pipeline
+  </Card>
+  <Card title="Resizing" icon="expand" href="/processing/resizing">
+    Step 2 of the pipeline
+  </Card>
+  <Card title="Cropping" icon="crop" href="/processing/cropping">
+    Step 3 of the pipeline
+  </Card>
+  <Card title="Format Conversion" icon="arrow-right-arrow-left" href="/processing/format-conversion">
+    Step 4 of the pipeline
+  </Card>
+</CardGroup>

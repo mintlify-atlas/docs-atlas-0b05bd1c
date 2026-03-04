@@ -1,0 +1,214 @@
+---
+title: Installation
+description: Complete guide to install PixelFlow and set up your development environment
+---
+
+## System Requirements
+
+Before installing PixelFlow, ensure your system meets the following requirements:
+
+- **Node.js**: Version 18.0 or higher
+- **npm**: Version 9.0 or higher (comes with Node.js)
+- **Operating System**: Windows, macOS, or Linux
+- **Browser**: Modern browser with ES6+ support (Chrome, Firefox, Safari, or Edge)
+
+<Note>
+PixelFlow is a client-side React application built with Next.js 16. All image processing happens directly in your browser - no backend server is required.
+</Note>
+
+## Installation Steps
+
+<Steps>
+  <Step title="Clone the Repository">
+    First, clone the PixelFlow repository from GitHub:
+
+    ```bash
+    git clone https://github.com/jios325/pixelflow.git
+    cd pixelflow
+    ```
+
+    Alternatively, download the source code as a ZIP file and extract it to your desired location.
+  </Step>
+
+  <Step title="Install Dependencies">
+    Install all required npm packages:
+
+    ```bash
+    npm install
+    ```
+
+    This will install all dependencies listed in `package.json`, including:
+
+    - **React 19** and **React DOM** - Core framework
+    - **Next.js 16** - Application framework with App Router
+    - **Ant Design 4** - UI component library
+    - **browser-image-compression** - Client-side image optimization
+    - **react-image-file-resizer** - Image resizing functionality
+    - **jszip** - ZIP file creation for batch downloads
+    - **file-saver** - File download utilities
+
+    <Accordion title="View Full Dependency List">
+      ```json package.json
+      {
+        "dependencies": {
+          "@ant-design/icons": "^5.6.1",
+          "@testing-library/dom": "^10.4.0",
+          "antd": "^4.24.10",
+          "browser-image-compression": "^2.0.2",
+          "file-saver": "^2.0.5",
+          "jszip": "^3.10.1",
+          "next": "^16.1.6",
+          "prop-types": "^15.8.1",
+          "react": "^19.2.4",
+          "react-dom": "^19.2.4",
+          "react-image-file-resizer": "^0.4.8"
+        },
+        "devDependencies": {
+          "eslint": "^8.57.1",
+          "eslint-config-prettier": "^10.1.8",
+          "eslint-config-react-app": "^7.0.1",
+          "husky": "^9.1.7",
+          "lint-staged": "^16.3.1",
+          "prettier": "^3.8.1"
+        }
+      }
+      ```
+    </Accordion>
+  </Step>
+
+  <Step title="Start Development Server">
+    Start the development server with Turbopack:
+
+    ```bash
+    npm run dev
+    ```
+
+    The application will be available at [http://localhost:3000](http://localhost:3000)
+
+    <Note>
+    The dev server uses Next.js 16 with Turbopack for fast hot module replacement (HMR) and optimal development experience.
+    </Note>
+  </Step>
+
+  <Step title="Verify Installation">
+    Open your browser and navigate to `http://localhost:3000`. You should see the PixelFlow interface with:
+
+    - Upload area for drag-and-drop or file selection
+    - Tools panel on the left side
+    - Processed images area on the right side
+    - Configuration button in the header
+
+    Try uploading an image to confirm everything is working correctly.
+  </Step>
+</Steps>
+
+## Production Build
+
+To create a production build for deployment:
+
+<CodeGroup>
+```bash Build
+npm run build
+```
+
+```bash Preview Build
+npm start
+```
+</CodeGroup>
+
+The build command creates a static export in the `build/` directory, which can be deployed to any static hosting service.
+
+<Note>
+PixelFlow uses Next.js static export (`output: 'export'`) to generate a fully client-side SPA. No Node.js server is required for deployment.
+</Note>
+
+## Development Tools
+
+PixelFlow includes several useful npm scripts for development:
+
+<CardGroup cols={2}>
+  <Card title="Linting" icon="code">
+    ```bash
+    npm run lint        # Check for code issues
+    npm run lint:fix    # Auto-fix linting issues
+    ```
+  </Card>
+
+  <Card title="Formatting" icon="paintbrush">
+    ```bash
+    npm run format        # Format code
+    npm run format:check  # Check formatting
+    ```
+  </Card>
+
+  <Card title="Code Audit" icon="magnifying-glass">
+    ```bash
+    npm run audit:code  # Run ESLint + Prettier
+    ```
+  </Card>
+
+  <Card title="Git Hooks" icon="git-alt">
+    Husky pre-commit hooks automatically run lint-staged to format and lint staged files
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Installation fails with permission errors">
+    If you encounter permission errors during `npm install`, try:
+
+    ```bash
+    sudo npm install
+    ```
+
+    Or configure npm to use a different directory:
+
+    ```bash
+    npm config set prefix ~/.npm-global
+    export PATH=~/.npm-global/bin:$PATH
+    ```
+  </Accordion>
+
+  <Accordion title="Port 3000 is already in use">
+    If port 3000 is occupied, you can specify a different port:
+
+    ```bash
+    PORT=3001 npm run dev
+    ```
+  </Accordion>
+
+  <Accordion title="Build fails with 'out of memory' error">
+    Increase Node.js memory limit:
+
+    ```bash
+    NODE_OPTIONS="--max-old-space-size=4096" npm run build
+    ```
+  </Accordion>
+
+  <Accordion title="Dependencies not installing correctly">
+    Clear npm cache and reinstall:
+
+    ```bash
+    rm -rf node_modules package-lock.json
+    npm cache clean --force
+    npm install
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="gear" href="/configuration">
+    Learn how to configure PixelFlow for your environment
+  </Card>
+
+  <Card title="Customization" icon="palette" href="/customization">
+    Customize branding, colors, and themes
+  </Card>
+</CardGroup>
+
+<Warning>
+PixelFlow processes all images client-side in the browser. For optimal performance, ensure users have modern browsers with sufficient memory, especially when processing large images or batches.
+</Warning>

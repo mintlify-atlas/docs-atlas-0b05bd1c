@@ -1,0 +1,515 @@
+---
+title: 'Image Cropping'
+description: 'Crop images with position control and custom dimensions'
+icon: 'crop'
+---
+
+## Overview
+
+PixelFlow provides intelligent image cropping with position control. Cropping is the **third step** in the processing pipeline, applied after optimization and resizing but before format conversion.
+
+<Info>
+  Cropping runs after resizing to ensure crop dimensions are relative to the resized image, not the original.
+</Info>
+
+## How Cropping Works
+
+Cropping uses the HTML5 Canvas API to extract a specific region from an image:
+
+<Steps>
+  <Step title="Load the image">
+    The file is read as a data URL and loaded into an Image element.
+  </Step>
+  
+  <Step title="Calculate source coordinates">
+    Based on the position setting (center, top-left, etc.), calculate where to start the crop.
+  </Step>
+  
+  <Step title="Draw to canvas">
+    Create a canvas with crop dimensions and draw only the desired region from the source image.
+  </Step>
+  
+  <Step title="Export as blob">
+    Convert the canvas content to a Blob and return the cropped image.
+  </Step>
+</Steps>
+
+## Default Settings
+
+| Setting | Default Value | Description |
+|---------|---------------|-------------|
+| **Enabled** | `false` | Cropping is off by default |
+| **Width** | 1000px | Default crop width |
+| **Height** | 1000px | Default crop height |
+| **Position** | `center` | Where to crop from |
+| **Crop Type** | `square` | Predefined crop shape |
+
+<Note>
+  Default crop dimensions are defined in `src/lib/constants.js` as `DEFAULT_CROP_WIDTH` and `DEFAULT_CROP_HEIGHT`.
+</Note>
+
+## Position Options
+
+PixelFlow supports 9 crop positions:
+
+<CardGroup cols={3}>
+  <Card title="top-left" icon="arrow-up-left">
+    Crop from the top-left corner
+  </Card>
+  <Card title="top" icon="arrow-up">
+    Crop from the top center
+  </Card>
+  <Card title="top-right" icon="arrow-up-right">
+    Crop from the top-right corner
+  </Card>
+  <Card title="left" icon="arrow-left">
+    Crop from the left center
+  </Card>
+  <Card title="center" icon="circle-dot">
+    Crop from the center (default)
+  </Card>
+  <Card title="right" icon="arrow-right">
+    Crop from the right center
+  </Card>
+  <Card title="bottom-left" icon="arrow-down-left">
+    Crop from the bottom-left corner
+  </Card>
+  <Card title="bottom" icon="arrow-down">
+    Crop from the bottom center
+  </Card>
+  <Card title="bottom-right" icon="arrow-down-right">
+    Crop from the bottom-right corner
+  </Card>
+</CardGroup>
+
+## Code Implementation
+
+Here's the complete crop implementation:
+
+```javascript
+export const cropImage = async (file, width, height, position = 'center') => {
+  logger.log(`Ejecutando cropImage con dimensiones: ${width}x${height}, posición: ${position}`);
+
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+      const img = new Image();
+
+      img.onload = () => {
+        logger.log(`Dimensiones reales antes del recorte: ${img.width}x${img.height}`);
+
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+
+        // Set canvas size to crop dimensions
+        canvas.width = width;
+        canvas.height = height;
+
+        // Calculate source coordinates based on position
+        let sourceX, sourceY;
+
+        // Calculate X coordinate
+        if (position.includes('left')) {
+          sourceX = 0;
+        } else if (position.includes('right')) {
+          sourceX = Math.max(0, img.width - width);
+        } else {
+          // center
+          sourceX = Math.max(0, (img.width - width) / 2);
+        }
+
+        // Calculate Y coordinate
+        if (position.includes('top')) {
+          sourceY = 0;
+        } else if (position.includes('bottom')) {
+          sourceY = Math.max(0, img.height - height);
+        } else {
+          // center
+          sourceY = Math.max(0, (img.height - height) / 2);
+        }
+
+        logger.log(`Posición de recorte: ${position}, Coordenadas: (${sourceX}, ${sourceY})`);
+
+        // Ensure we don't exceed image boundaries
+        const sourceWidth = Math.min(width, img.width - sourceX);
+        const sourceHeight = Math.min(height, img.height - sourceY);
+
+        logger.log(`Área de origen para recorte: ${sourceWidth}x${sourceHeight}`);
+
+        // White background for canvas
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, width, height);
+
+        // If image is smaller than crop, center it
+        let destX = 0;
+        let destY = 0;
+        const destWidth = sourceWidth;
+        const destHeight = sourceHeight;
+
+        if (sourceWidth < width) {
+          destX = Math.floor((width - sourceWidth) / 2);
+        }
+
+        if (sourceHeight < height) {
+          destY = Math.floor((height - sourceHeight) / 2);
+        }
+
+        // Draw only the desired portion of the image
+        ctx.drawImage(
+          img,
+          sourceX,      // Source X
+          sourceY,      // Source Y
+          sourceWidth,  // Source width
+          sourceHeight, // Source height
+          destX,        // Destination X
+          destY,        // Destination Y
+          destWidth,    // Destination width
+          destHeight    // Destination height
+        );
+
+        logger.log(`Recorte completado: ${width}x${height}`);
+
+        // Convert to Blob
+        canvas.toBlob((blob) => {
+          if (blob) {
+            resolve(blob);
+          } else {
+            reject(new Error('Error al recortar la imagen'));
+          }
+        }, file.type);
+      };
+
+      img.onerror = () => {
+        reject(new Error('Error al cargar la imagen'));
+      };
+
+      img.src = e.target.result;
+    };
+
+    reader.onerror = () => {
+      reject(new Error('Error al leer el archivo'));
+    };
+
+    reader.readAsDataURL(file);
+  });
+};
+```
+
+## Position Calculation Logic
+
+The position string determines the source coordinates:
+
+### Horizontal Position (X axis)
+
+```javascript
+if (position.includes('left')) {
+  sourceX = 0;  // Start from left edge
+} else if (position.includes('right')) {
+  sourceX = Math.max(0, img.width - width);  // Start from right edge
+} else {
+  sourceX = Math.max(0, (img.width - width) / 2);  // Center horizontally
+}
+```
+
+### Vertical Position (Y axis)
+
+```javascript
+if (position.includes('top')) {
+  sourceY = 0;  // Start from top edge
+} else if (position.includes('bottom')) {
+  sourceY = Math.max(0, img.height - height);  // Start from bottom edge
+} else {
+  sourceY = Math.max(0, (img.height - height) / 2);  // Center vertically
+}
+```
+
+## Usage Examples
+
+### Enable and Configure Cropping
+
+```javascript
+const { processingSettings, updateCropSettings } = useImageProcessor(uploadedImages);
+
+// Enable square crop from center (1000x1000)
+updateCropSettings({
+  enabled: true,
+  width: 1000,
+  height: 1000,
+  position: 'center',
+  cropType: 'square'
+});
+
+// Crop from top-left corner
+updateCropSettings({
+  enabled: true,
+  width: 800,
+  height: 600,
+  position: 'top-left'
+});
+
+// Disable cropping
+updateCropSettings({ enabled: false });
+```
+
+### Pipeline Execution
+
+```javascript
+// 1. First: Optimization
+if (processingSettings.optimize) {
+  processedFile = await optimizeImage(processedFile);
+}
+
+// 2. Second: Resize
+if (processingSettings.resize.enabled) {
+  processedFile = await resizeImage(
+    processedFile,
+    resizeDimensions.width,
+    resizeDimensions.height,
+    processingSettings.resize.maintainAspectRatio
+  );
+}
+
+// 3. Third: Crop (after resize!)
+if (processingSettings.crop.enabled) {
+  const cropWidth = processingSettings.crop.width;
+  const cropHeight = processingSettings.crop.height;
+
+  logger.log(
+    `Aplicando recorte: ${cropWidth}x${cropHeight} desde posición ${processingSettings.crop.position}`
+  );
+
+  processedFile = await cropImage(
+    processedFile,
+    cropWidth,
+    cropHeight,
+    processingSettings.crop.position || 'center'
+  );
+}
+
+// 4. Finally: Format conversion...
+```
+
+## Edge Cases and Safeguards
+
+PixelFlow handles several edge cases automatically:
+
+<AccordionGroup>
+  <Accordion title="Image smaller than crop dimensions">
+    If the source image is smaller than the requested crop size, PixelFlow centers the image on a white background:
+    
+    ```javascript
+    // Ensure we don't exceed image boundaries
+    const sourceWidth = Math.min(width, img.width - sourceX);
+    const sourceHeight = Math.min(height, img.height - sourceY);
+    
+    // If image is smaller, center it
+    let destX = 0;
+    let destY = 0;
+    
+    if (sourceWidth < width) {
+      destX = Math.floor((width - sourceWidth) / 2);
+    }
+    
+    if (sourceHeight < height) {
+      destY = Math.floor((height - sourceHeight) / 2);
+    }
+    ```
+    
+    Result: A canvas of the requested size with the smaller image centered on a white background.
+  </Accordion>
+  
+  <Accordion title="Crop area exceeds image bounds">
+    When calculating source coordinates, `Math.max(0, ...)` ensures coordinates never go negative:
+    
+    ```javascript
+    // Prevent negative coordinates
+    sourceX = Math.max(0, (img.width - width) / 2);
+    sourceY = Math.max(0, (img.height - height) / 2);
+    ```
+    
+    This prevents errors when the crop is positioned at edges.
+  </Accordion>
+  
+  <Accordion title="White background for gaps">
+    A white background is drawn first to fill any gaps:
+    
+    ```javascript
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, width, height);
+    ```
+    
+    This ensures the output always has the requested dimensions, even if the source image is smaller.
+  </Accordion>
+</AccordionGroup>
+
+## Crop After Resize
+
+<Warning>
+  Always resize **before** cropping. This ensures crop dimensions are relative to the resized image.
+</Warning>
+
+**Example scenario:**
+
+```javascript
+// Original image: 4000x3000
+// Want to resize to 2000x1500, then crop to 1000x1000
+
+// ✅ CORRECT ORDER:
+// 1. Resize to 2000x1500
+// 2. Crop 1000x1000 from center of 2000x1500 image
+
+// ❌ WRONG ORDER (if crop came first):
+// 1. Crop 1000x1000 from center of 4000x3000 (wrong proportion)
+// 2. Resize would distort the crop
+```
+
+PixelFlow's pipeline ensures this order automatically:
+1. Optimization
+2. **Resize** (step 2)
+3. **Crop** (step 3)
+4. Format conversion
+
+## Common Crop Presets
+
+```javascript
+// Square profile picture (centered)
+updateCropSettings({
+  enabled: true,
+  width: 500,
+  height: 500,
+  position: 'center',
+  cropType: 'square'
+});
+
+// Wide banner (top-centered)
+updateCropSettings({
+  enabled: true,
+  width: 1200,
+  height: 400,
+  position: 'top'
+});
+
+// Thumbnail (top-left focus)
+updateCropSettings({
+  enabled: true,
+  width: 300,
+  height: 300,
+  position: 'top-left'
+});
+
+// Instagram post (square, centered)
+updateCropSettings({
+  enabled: true,
+  width: 1080,
+  height: 1080,
+  position: 'center'
+});
+```
+
+## Debugging Crop Operations
+
+PixelFlow logs detailed crop information in development mode:
+
+```javascript
+logger.log(`Dimensiones reales antes del recorte: ${img.width}x${img.height}`);
+logger.log(`Posición de recorte: ${position}, Coordenadas: (${sourceX}, ${sourceY})`);
+logger.log(`Área de origen para recorte: ${sourceWidth}x${sourceHeight}`);
+logger.log(`Recorte completado: ${width}x${height}`);
+```
+
+<Info>
+  Check the browser console (in development) to see detailed crop calculations for each image.
+</Info>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Crop dimensions vs. source size">
+    Consider the source image size when setting crop dimensions:
+    - If crop is larger than source, you'll get white padding
+    - If crop is much smaller, you'll lose significant image area
+    
+    **Tip:** If resizing to 1000px wide, crop dimensions should be ≤1000px to avoid padding.
+  </Accordion>
+  
+  <Accordion title="Position for different content types">
+    Choose position based on image content:
+    - **Portraits**: Use `center` or `top` to focus on faces
+    - **Landscapes**: Use `center` for balanced composition
+    - **Products**: Use `center` for symmetrical framing
+    - **Text/logos**: Use position that preserves important content
+  </Accordion>
+  
+  <Accordion title="Square crops for thumbnails">
+    Square crops (equal width and height) work best for:
+    - Profile pictures
+    - Thumbnails
+    - Grid layouts
+    - Social media posts
+    
+    Use `position: 'center'` to ensure the most important content is preserved.
+  </Accordion>
+  
+  <Accordion title="Test with various image sizes">
+    When batch processing, images may have different sizes and orientations. Test your crop settings with:
+    - Landscape images (wider than tall)
+    - Portrait images (taller than wide)
+    - Square images
+    - Very large and very small images
+  </Accordion>
+</AccordionGroup>
+
+## Canvas Drawing Explained
+
+The crop operation uses `ctx.drawImage()` with 9 parameters:
+
+```javascript
+ctx.drawImage(
+  img,          // Source image
+  sourceX,      // Source X (where to start in source)
+  sourceY,      // Source Y (where to start in source)
+  sourceWidth,  // How much width to take from source
+  sourceHeight, // How much height to take from source
+  destX,        // Destination X (where to place on canvas)
+  destY,        // Destination Y (where to place on canvas)
+  destWidth,    // Destination width (how wide on canvas)
+  destHeight    // Destination height (how tall on canvas)
+);
+```
+
+**Example:**
+
+```javascript
+// Crop 1000x1000 from center of 2000x1500 image
+
+// Source coordinates (where to start in the 2000x1500 image)
+sourceX = (2000 - 1000) / 2 = 500
+sourceY = (1500 - 1000) / 2 = 250
+
+// We take 1000x1000 from the source
+sourceWidth = 1000
+sourceHeight = 1000
+
+// Place at (0,0) on canvas, full size
+destX = 0
+destY = 0
+destWidth = 1000
+destHeight = 1000
+
+// Result: Center 1000x1000 region extracted
+```
+
+## Related Topics
+
+<CardGroup cols={2}>
+  <Card title="Resizing" icon="expand" href="/processing/resizing">
+    Step 2: Resize before cropping
+  </Card>
+  <Card title="Format Conversion" icon="arrow-right-arrow-left" href="/processing/format-conversion">
+    Step 4: Convert format after cropping
+  </Card>
+  <Card title="Batch Operations" icon="layer-group" href="/processing/batch-operations">
+    See the complete processing pipeline
+  </Card>
+</CardGroup>

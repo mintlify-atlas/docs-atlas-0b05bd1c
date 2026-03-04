@@ -1,0 +1,372 @@
+---
+title: 'ToolsPanel'
+description: 'Comprehensive image processing tools panel with optimization, format conversion, resize, and crop controls'
+icon: 'toolbox'
+---
+
+## Overview
+
+The `ToolsPanel` component provides a comprehensive interface for configuring image processing operations. It combines multiple tools (optimization, format conversion, resizing, and cropping) in a unified panel with a clear processing order.
+
+## Features
+
+- Image optimization toggle
+- Output format selection (JPG, PNG, WEBP, original)
+- Advanced resize controls via ResizeTool
+- Advanced crop controls via CropTool
+- Clear indication of processing order
+- Brand-aware theming
+- Disabled state support
+
+## Processing order
+
+<Info>
+  Tools are applied in a specific order: **1) Optimization → 2) Resizing → 3) Cropping → 4) Format conversion**
+</Info>
+
+## Props
+
+<ParamField path="processingSettings" type="object" required>
+  Configuration object containing all processing settings.
+  
+  <Expandable title="properties">
+    <ResponseField name="optimize" type="boolean">
+      Enable/disable image optimization.
+    </ResponseField>
+    
+    <ResponseField name="format" type="string">
+      Output format: `"original"`, `"jpg"`, `"png"`, or `"webp"`.
+    </ResponseField>
+    
+    <ResponseField name="resize" type="object">
+      Resize configuration object.
+      
+      <Expandable title="properties">
+        <ResponseField name="enabled" type="boolean">
+          Enable/disable resizing.
+        </ResponseField>
+        <ResponseField name="width" type="number">
+          Target width in pixels or percentage.
+        </ResponseField>
+        <ResponseField name="unit" type="string">
+          Unit type: `"px"` or `"%"`.
+        </ResponseField>
+        <ResponseField name="maintainAspectRatio" type="boolean">
+          Preserve aspect ratio during resize.
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="crop" type="object">
+      Crop configuration object.
+      
+      <Expandable title="properties">
+        <ResponseField name="enabled" type="boolean">
+          Enable/disable cropping.
+        </ResponseField>
+        <ResponseField name="cropType" type="string">
+          Crop preset: `"square"`, `"horizontal-16-9"`, `"horizontal-4-3"`, `"vertical-9-16"`, or `"vertical-3-4"`.
+        </ResponseField>
+        <ResponseField name="position" type="string">
+          Crop position: `"center"`, `"top-left"`, `"top-center"`, `"top-right"`, `"center-left"`, `"center-right"`, `"bottom-left"`, `"bottom-center"`, or `"bottom-right"`.
+        </ResponseField>
+        <ResponseField name="width" type="number">
+          Crop width in pixels.
+        </ResponseField>
+        <ResponseField name="height" type="number">
+          Crop height in pixels.
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="toggleOptimize" type="function" required>
+  Callback to toggle optimization on/off.
+  
+  **Signature:** `() => void`
+</ParamField>
+
+<ParamField path="changeFormat" type="function" required>
+  Callback to change output format.
+  
+  **Signature:** `(format: string) => void`
+</ParamField>
+
+<ParamField path="updateResizeSettings" type="function" required>
+  Callback to update resize configuration.
+  
+  **Signature:** `(settings: Partial<ResizeSettings>) => void`
+</ParamField>
+
+<ParamField path="updateCropSettings" type="function" required>
+  Callback to update crop configuration.
+  
+  **Signature:** `(settings: Partial<CropSettings>) => void`
+</ParamField>
+
+<ParamField path="disabled" type="boolean" default="false">
+  When `true`, disables all controls in the panel.
+</ParamField>
+
+## Usage
+
+### Basic usage
+
+```jsx
+import ToolsPanel from '@/components/Tools/ToolsPanel';
+
+function MyComponent() {
+  const [settings, setSettings] = useState({
+    optimize: true,
+    format: 'original',
+    resize: {
+      enabled: false,
+      width: 800,
+      unit: 'px',
+      maintainAspectRatio: true,
+    },
+    crop: {
+      enabled: false,
+      cropType: 'square',
+      position: 'center',
+      width: 1000,
+      height: 1000,
+    },
+  });
+
+  const toggleOptimize = () => {
+    setSettings(prev => ({ ...prev, optimize: !prev.optimize }));
+  };
+
+  const changeFormat = (format) => {
+    setSettings(prev => ({ ...prev, format }));
+  };
+
+  const updateResizeSettings = (updates) => {
+    setSettings(prev => ({
+      ...prev,
+      resize: { ...prev.resize, ...updates },
+    }));
+  };
+
+  const updateCropSettings = (updates) => {
+    setSettings(prev => ({
+      ...prev,
+      crop: { ...prev.crop, ...updates },
+    }));
+  };
+
+  return (
+    <ToolsPanel
+      processingSettings={settings}
+      toggleOptimize={toggleOptimize}
+      changeFormat={changeFormat}
+      updateResizeSettings={updateResizeSettings}
+      updateCropSettings={updateCropSettings}
+    />
+  );
+}
+```
+
+### Real-world example from App.jsx
+
+```jsx
+import ToolsPanel from '@/components/Tools/ToolsPanel';
+import useImageProcessor from '@/hooks/useImageProcessor';
+
+function App() {
+  const {
+    processingSettings,
+    processing,
+    toggleOptimize,
+    changeFormat,
+    updateResizeSettings,
+    updateCropSettings,
+  } = useImageProcessor(uploadedImages);
+
+  return (
+    <ToolsPanel
+      processingSettings={processingSettings}
+      toggleOptimize={toggleOptimize}
+      changeFormat={changeFormat}
+      updateResizeSettings={updateResizeSettings}
+      updateCropSettings={updateCropSettings}
+      disabled={processing}
+    />
+  );
+}
+```
+
+### With disabled state during processing
+
+```jsx
+import ToolsPanel from '@/components/Tools/ToolsPanel';
+
+function MyComponent() {
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [settings, setSettings] = useState({/* ... */});
+
+  return (
+    <ToolsPanel
+      processingSettings={settings}
+      toggleOptimize={/* ... */}
+      changeFormat={/* ... */}
+      updateResizeSettings={/* ... */}
+      updateCropSettings={/* ... */}
+      disabled={isProcessing}
+    />
+  );
+}
+```
+
+## Child components
+
+The ToolsPanel composes two specialized tool components:
+
+### ResizeTool
+
+Handles image resizing configuration with support for:
+
+- Enable/disable toggle
+- Pixel or percentage units
+- Width-based resizing
+- Aspect ratio maintenance (always enabled)
+
+<Accordion title="ResizeTool props">
+  <ParamField path="resizeSettings" type="object" required>
+    Current resize configuration.
+  </ParamField>
+  
+  <ParamField path="updateResizeSettings" type="function" required>
+    Callback to update settings.
+  </ParamField>
+  
+  <ParamField path="disabled" type="boolean">
+    Disable all controls.
+  </ParamField>
+</Accordion>
+
+### CropTool
+
+Handles image cropping configuration with support for:
+
+- Enable/disable toggle
+- Preset aspect ratios (square, 16:9, 4:3, 9:16, 3:4)
+- Nine position options for crop placement
+- Automatic dimension calculation based on crop type
+
+<Accordion title="CropTool props">
+  <ParamField path="cropSettings" type="object" required>
+    Current crop configuration.
+  </ParamField>
+  
+  <ParamField path="updateCropSettings" type="function" required>
+    Callback to update settings.
+  </ParamField>
+  
+  <ParamField path="disabled" type="boolean">
+    Disable all controls.
+  </ParamField>
+</Accordion>
+
+## Format options
+
+The format selector supports four output options:
+
+<Tabs>
+  <Tab title="Original">
+    Maintains the original file format. Useful when you want to preserve format while applying other transformations.
+  </Tab>
+  
+  <Tab title="JPG">
+    Converts to JPEG format. Best for photographs and images with many colors. Smaller file sizes with lossy compression.
+  </Tab>
+  
+  <Tab title="PNG">
+    Converts to PNG format. Best for images with transparency or when lossless compression is needed.
+  </Tab>
+  
+  <Tab title="WEBP">
+    Converts to WebP format. Modern format with superior compression. Best for web delivery.
+  </Tab>
+</Tabs>
+
+## Resize settings
+
+### Units
+
+- **Pixels (px):** Absolute size in pixels (max 5000px)
+- **Percentage (%):** Relative to original size (1-100%)
+
+### Behavior
+
+<Note>
+  Aspect ratio is always maintained. The width setting is used as the base measurement, and height is calculated proportionally.
+</Note>
+
+## Crop presets
+
+The CropTool provides five preset aspect ratios:
+
+| Preset | Aspect Ratio | Default Dimensions | Use Case |
+|--------|--------------|-------------------|----------|
+| Square | 1:1 | 1000x1000 | Profile pictures, Instagram posts |
+| Horizontal (16:9) | 16:9 | 1600x900 | YouTube thumbnails, wide displays |
+| Horizontal (4:3) | 4:3 | 1200x900 | Standard displays, presentations |
+| Vertical (9:16) | 9:16 | 900x1600 | Instagram Stories, mobile portraits |
+| Vertical (3:4) | 3:4 | 900x1200 | Portrait photography |
+
+## Crop positions
+
+Nine position options control where the crop is applied:
+
+```
+┌─────────┬─────────┬─────────┐
+│ Top     │   Top   │   Top   │
+│ Left    │ Center  │  Right  │
+├─────────┼─────────┼─────────┤
+│ Center  │ Center  │ Center  │
+│ Left    │(Default)│  Right  │
+├─────────┼─────────┼─────────┤
+│ Bottom  │ Bottom  │ Bottom  │
+│ Left    │ Center  │  Right  │
+└─────────┴─────────┴─────────┘
+```
+
+## Implementation details
+
+### Source locations
+
+- `src/components/Tools/ToolsPanel.jsx:22`
+- `src/components/Tools/ResizeTool.jsx:15`
+- `src/components/Tools/CropTool.jsx:10`
+
+### Dependencies
+
+- `antd` - Card, Form, Switch, Select, InputNumber, Typography
+- `@/context/BrandContext` - Brand theming
+- `@/lib/logger` - Conditional logging
+
+### State management
+
+<Warning>
+  The ToolsPanel is a controlled component. All state must be managed by the parent component via the provided callbacks.
+</Warning>
+
+## Related components
+
+<Columns cols={2}>
+  <Card title="RenamePanel" icon="pen-to-square" href="/file-management/renaming">
+    Panel for configuring filename renaming options.
+  </Card>
+  
+  <Card title="ProcessedImagesList" icon="image" href="/api/components/processed-images-list">
+    Displays processed images with applied transformations.
+  </Card>
+</Columns>
+
+## See also
+
+- [useImageProcessor hook](/api/hooks/use-image-processor) - Hook for managing processing state
+- [Image processing utilities](/api/utilities/image-processing) - Core processing functions

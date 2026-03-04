@@ -1,122 +1,108 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "PixelFlow",
+  "theme": "palm",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#a855f7",
+    "light": "#818cf8",
+    "dark": "#a855f7"
   },
-  "favicon": "/favicon.svg",
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/jios325/pixelflow"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/jios325/pixelflow"
+    }
+  },
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Overview",
             "pages": [
-              "index",
-              "quickstart",
-              "development"
+              "introduction",
+              "features",
+              "quickstart"
             ]
           },
           {
-            "group": "Customization",
+            "group": "Getting Started",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
+              "installation",
+              "configuration",
+              "customization"
             ]
           },
           {
-            "group": "Writing content",
+            "group": "Image Processing",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
+              "processing/optimization",
+              "processing/format-conversion",
+              "processing/resizing",
+              "processing/cropping",
+              "processing/batch-operations"
             ]
           },
           {
-            "group": "AI tools",
+            "group": "File Management",
             "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "file-management/uploading",
+              "file-management/renaming",
+              "file-management/downloading"
+            ]
+          },
+          {
+            "group": "Advanced",
+            "pages": [
+              "advanced/brand-customization",
+              "advanced/memory-management",
+              "advanced/performance"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "API Reference",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Hooks",
             "pages": [
-              "api-reference/introduction"
+              "api/hooks/use-image-upload",
+              "api/hooks/use-image-processor",
+              "api/hooks/use-image-rename"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "Utilities",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "api/utils/image-processing",
+              "api/utils/file-validation",
+              "api/utils/memory-manager"
+            ]
+          },
+          {
+            "group": "Components",
+            "pages": [
+              "api/components/upload-area",
+              "api/components/tools-panel",
+              "api/components/processed-images-list"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "api/config/brand-config",
+              "api/config/constants"
             ]
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
-  "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
-    }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
-    }
+    ]
   }
 }

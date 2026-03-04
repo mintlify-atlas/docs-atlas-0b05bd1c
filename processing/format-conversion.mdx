@@ -1,0 +1,336 @@
+---
+title: 'Format Conversion'
+description: 'Convert images between JPG, PNG, WEBP, and GIF formats with quality control'
+icon: 'arrow-right-arrow-left'
+---
+
+## Overview
+
+PixelFlow supports conversion between common image formats using canvas-based rendering. Format conversion is the **final step** in the processing pipeline, applied after optimization, resizing, and cropping.
+
+<Info>
+  Format conversion happens last in the pipeline to ensure all transformations are completed before encoding to the target format.
+</Info>
+
+## Supported Formats
+
+PixelFlow can convert images to and from:
+
+<CardGroup cols={2}>
+  <Card title="JPEG (.jpg)" icon="image">
+    Best for photographs. No transparency support. White background added automatically.
+  </Card>
+  <Card title="PNG (.png)" icon="image">
+    Lossless compression. Supports transparency. Larger file sizes.
+  </Card>
+  <Card title="WEBP (.webp)" icon="image">
+    Modern format with excellent compression. Supports transparency. Best balance of quality and size.
+  </Card>
+  <Card title="GIF (.gif)" icon="image">
+    Supports animation (though PixelFlow processes static frames). Limited to 256 colors.
+  </Card>
+</CardGroup>
+
+## How It Works
+
+Format conversion uses the HTML5 Canvas API to re-encode images:
+
+<Steps>
+  <Step title="Load the image">
+    The file is read as a data URL and loaded into an `Image` element.
+  </Step>
+  
+  <Step title="Draw to canvas">
+    The image is drawn onto a canvas element. For JPEG, a white background is added first.
+  </Step>
+  
+  <Step title="Export as new format">
+    The canvas content is exported using `canvas.toBlob()` with the target MIME type.
+  </Step>
+  
+  <Step title="Create new File object">
+    A new File is created with the correct extension and MIME type.
+  </Step>
+</Steps>
+
+## Code Implementation
+
+Here's the complete format conversion implementation:
+
+```javascript
+import { FORMAT_CONVERSION_QUALITY } from '@/lib/constants';
+
+export const convertImageFormat = async (file, format) => {
+  // If format is 'original', return file unchanged
+  if (format === 'original') {
+    return file;
+  }
+
+  // Determine MIME type and extension
+  let mimeType, extension;
+  switch (format.toLowerCase()) {
+    case 'jpg':
+    case 'jpeg':
+      mimeType = 'image/jpeg';
+      extension = 'jpg';
+      break;
+    case 'png':
+      mimeType = 'image/png';
+      extension = 'png';
+      break;
+    case 'webp':
+      mimeType = 'image/webp';
+      extension = 'webp';
+      break;
+    case 'gif':
+      mimeType = 'image/gif';
+      extension = 'gif';
+      break;
+    default:
+      mimeType = `image/${format}`;
+      extension = format;
+  }
+
+  // Load image into Image element
+  const img = await loadImagePromise(file);
+
+  // Convert using canvas
+  const blob = await createConvertPromise(img, mimeType, FORMAT_CONVERSION_QUALITY);
+
+  // Create new File with correct type
+  const timestamp = new Date().getTime();
+  const convertedFile = new File([blob], `image_${timestamp}.${extension}`, {
+    type: mimeType,
+    lastModified: timestamp,
+  });
+
+  return convertedFile;
+};
+```
+
+### Canvas Conversion Helper
+
+The `createConvertPromise` function handles the actual canvas rendering:
+
+```javascript
+const createConvertPromise = (img, format, quality = FORMAT_CONVERSION_QUALITY) => {
+  return new Promise((resolve, reject) => {
+    // Create canvas with image dimensions
+    const canvas = document.createElement('canvas');
+    canvas.width = img.width;
+    canvas.height = img.height;
+    const ctx = canvas.getContext('2d');
+
+    // Add white background for JPEG (no transparency)
+    if (format === 'image/jpeg') {
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    // Draw the image
+    ctx.drawImage(img, 0, 0);
+
+    // Convert to target format
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) {
+          reject(new Error(`No se pudo convertir a ${format}`));
+          return;
+        }
+        resolve(blob);
+      },
+      format,
+      quality  // 0.92 (92% quality)
+    );
+  });
+};
+```
+
+## Quality Settings
+
+Format conversion uses a quality setting of **0.92** (92%) defined in constants:
+
+```javascript
+// src/lib/constants.js
+export const FORMAT_CONVERSION_QUALITY = 0.92;
+```
+
+<Note>
+  Quality is a value between 0 and 1, where 0.92 provides an excellent balance between file size and visual quality.
+</Note>
+
+## Usage Examples
+
+### Change Output Format
+
+Set the format in processing settings:
+
+```javascript
+const { processingSettings, changeFormat } = useImageProcessor(uploadedImages);
+
+// Convert to WEBP
+changeFormat('webp');
+
+// Keep original format
+changeFormat('original');
+
+// Convert to PNG
+changeFormat('png');
+```
+
+### Processing Pipeline Order
+
+Format conversion runs last in the pipeline:
+
+```javascript
+// 1. Optimization
+if (processingSettings.optimize) {
+  processedFile = await optimizeImage(processedFile);
+}
+
+// 2. Resize
+if (processingSettings.resize.enabled) {
+  processedFile = await resizeImage(processedFile, width, height);
+}
+
+// 3. Crop
+if (processingSettings.crop.enabled) {
+  processedFile = await cropImage(processedFile, cropWidth, cropHeight);
+}
+
+// 4. Format conversion (LAST)
+if (processingSettings.format !== 'original') {
+  processedFile = await convertImageFormat(
+    processedFile,
+    processingSettings.format
+  );
+}
+```
+
+## Format Recommendations
+
+<AccordionGroup>
+  <Accordion title="When to use JPEG">
+    **Best for:**
+    - Photographs with many colors
+    - Images where transparency is not needed
+    - Maximum compatibility across all browsers and devices
+    
+    **Limitations:**
+    - No transparency support (alpha channel removed, white background added)
+    - Lossy compression (though 92% quality is high)
+  </Accordion>
+  
+  <Accordion title="When to use PNG">
+    **Best for:**
+    - Images requiring transparency
+    - Graphics with text or sharp edges
+    - When lossless quality is critical
+    
+    **Limitations:**
+    - Larger file sizes than JPEG or WEBP
+    - Not ideal for photographs
+  </Accordion>
+  
+  <Accordion title="When to use WEBP">
+    **Best for:**
+    - Modern web applications
+    - Best compression with high quality
+    - Both photos and graphics
+    - Supports transparency
+    
+    **Limitations:**
+    - Limited support in older browsers (IE, Safari < 14)
+  </Accordion>
+  
+  <Accordion title="When to use GIF">
+    **Best for:**
+    - Maximum compatibility
+    - Simple graphics with limited colors
+    
+    **Limitations:**
+    - Only 256 colors
+    - Larger file sizes than modern formats
+    - PixelFlow processes only static frames (no animation preservation)
+  </Accordion>
+</AccordionGroup>
+
+## File Extension Handling
+
+PixelFlow automatically updates file extensions based on the converted format:
+
+```javascript
+// Determine extension from MIME type
+let newExtension;
+if (processedFile.type) {
+  const mimeType = processedFile.type.toLowerCase();
+  if (mimeType.includes('jpeg') || mimeType.includes('jpg')) {
+    newExtension = 'jpg';
+  } else if (mimeType.includes('png')) {
+    newExtension = 'png';
+  } else if (mimeType.includes('webp')) {
+    newExtension = 'webp';
+  } else if (mimeType.includes('gif')) {
+    newExtension = 'gif';
+  }
+}
+
+// Construct new filename
+const baseName = getBaseName(img.name); // Remove old extension
+const newName = `${baseName}.${newExtension}`;
+```
+
+## Error Handling
+
+If conversion fails, the original file is returned:
+
+```javascript
+try {
+  processedFile = await convertImageFormat(
+    processedFile,
+    processingSettings.format
+  );
+} catch (error) {
+  logger.error(`Error en la conversión de formato:`, error);
+  // Original file is used
+}
+```
+
+<Warning>
+  Always test format conversions with your target images. Some formats may not support all features (e.g., JPEG removes transparency).
+</Warning>
+
+## Browser Compatibility
+
+Format conversion uses `canvas.toBlob()` with a fallback for older browsers:
+
+```javascript
+if (canvas.toBlob) {
+  // Modern browsers
+  canvas.toBlob((blob) => resolve(blob), format, quality);
+} else {
+  // Fallback: canvas.toDataURL() + manual Blob creation
+  const dataURL = canvas.toDataURL(format, quality);
+  const binary = atob(dataURL.split(',')[1]);
+  const array = [];
+  for (let i = 0; i < binary.length; i++) {
+    array.push(binary.charCodeAt(i));
+  }
+  const blob = new Blob([new Uint8Array(array)], { type: format });
+  resolve(blob);
+}
+```
+
+## Related Topics
+
+<CardGroup cols={2}>
+  <Card title="Optimization" icon="gauge-high" href="/processing/optimization">
+    Learn about image optimization (step 1 in the pipeline)
+  </Card>
+  <Card title="Resizing" icon="expand" href="/processing/resizing">
+    Resize images before format conversion
+  </Card>
+  <Card title="Batch Operations" icon="layer-group" href="/processing/batch-operations">
+    Understand the complete processing order
+  </Card>
+</CardGroup>

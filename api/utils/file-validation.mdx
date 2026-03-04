@@ -1,0 +1,503 @@
+---
+title: 'File Validation'
+description: 'File type validation, size checking, and filename utilities'
+icon: 'file-check'
+---
+
+Utilities for validating image files, checking file sizes, formatting file information, and manipulating filenames.
+
+## Functions
+
+### isImageFile
+
+Validates if a file is an accepted image type based on MIME type.
+
+```javascript
+import { isImageFile } from '@/lib/fileValidation';
+
+const valid = isImageFile(file);
+// Returns: true or false
+```
+
+<ParamField path="file" type="File" required>
+  File object to validate
+</ParamField>
+
+<ResponseField name="return" type="boolean">
+  `true` if file type is accepted, `false` otherwise
+</ResponseField>
+
+#### Implementation Notes
+
+- Accepted MIME types:
+  - `image/jpeg`
+  - `image/png`
+  - `image/gif`
+  - `image/webp`
+- Uses strict type checking with `includes()`
+- Does not validate file contents, only MIME type
+
+---
+
+### validateFileSize
+
+Validates that a file does not exceed the maximum size limit.
+
+```javascript
+import { validateFileSize } from '@/lib/fileValidation';
+
+const result = validateFileSize(file, 60);
+// Returns: { valid: true, message: '' }
+// OR: { valid: false, message: 'El archivo excede el tamaño máximo de 60MB' }
+```
+
+<ParamField path="file" type="File" required>
+  File object to validate
+</ParamField>
+
+<ParamField path="maxSizeMB" type="number" default="60">
+  Maximum file size in megabytes
+</ParamField>
+
+<ResponseField name="return" type="Object">
+  Validation result object
+  
+  <Expandable title="properties">
+    <ResponseField name="valid" type="boolean">
+      `true` if file size is within limit, `false` otherwise
+    </ResponseField>
+    
+    <ResponseField name="message" type="string">
+      Error message (empty string if valid, Spanish error message if invalid)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+#### Implementation Notes
+
+- Converts MB to bytes: `maxSizeBytes = maxSizeMB * 1024 * 1024`
+- Default limit: 60 MB
+- Message is in Spanish: `"El archivo excede el tamaño máximo de {maxSizeMB}MB"`
+
+---
+
+### formatFileSize
+
+Formats a byte size into a human-readable string.
+
+```javascript
+import { formatFileSize } from '@/lib/fileValidation';
+
+formatFileSize(0);           // "0 Bytes"
+formatFileSize(1024);        // "1 KB"
+formatFileSize(1536);        // "1.5 KB"
+formatFileSize(1048576);     // "1 MB"
+formatFileSize(2621440);     // "2.5 MB"
+formatFileSize(5242880, 0);  // "5 MB" (no decimals)
+```
+
+<ParamField path="bytes" type="number" required>
+  File size in bytes
+</ParamField>
+
+<ParamField path="decimals" type="number" default="2">
+  Number of decimal places to display
+</ParamField>
+
+<ResponseField name="return" type="string">
+  Formatted size string (e.g., `"2.5 MB"`, `"1.5 KB"`)
+</ResponseField>
+
+#### Implementation Notes
+
+- Returns `"0 Bytes"` for zero input
+- Units: `Bytes`, `KB`, `MB`, `GB`
+- Uses base-1024 (binary) calculation
+- Formula: `(bytes / 1024^i).toFixed(decimals) + ' ' + sizes[i]`
+- Removes trailing zeros from decimals with `parseFloat()`
+
+#### Usage Example
+
+From `useImageProcessor.js:264`:
+
+```javascript
+return {
+  ...img,
+  processed: true,
+  processedFile,
+  processedPreview,
+  processedSize: processedFile.size,
+  formattedProcessedSize: formatFileSize(processedFile.size),
+  // ...
+};
+```
+
+---
+
+### getFileExtension
+
+Extracts the file extension from a filename.
+
+```javascript
+import { getFileExtension } from '@/lib/fileValidation';
+
+getFileExtension('photo.jpg');        // "jpg"
+getFileExtension('image.test.png');   // "png"
+getFileExtension('noextension');      // ""
+getFileExtension('.hidden');          // ""
+```
+
+<ParamField path="filename" type="string" required>
+  Filename or path to extract extension from
+</ParamField>
+
+<ResponseField name="return" type="string">
+  File extension without the dot (e.g., `"jpg"`), or empty string if no extension
+</ResponseField>
+
+#### Implementation Notes
+
+- Uses bitwise operation: `((filename.lastIndexOf('.') - 1) >>> 0) + 2`
+- Returns empty string for:
+  - Files without extension
+  - Dotfiles (e.g., `.gitignore`)
+  - Empty strings
+- Safe for all edge cases
+
+---
+
+### getBaseName
+
+Extracts the filename without extension.
+
+```javascript
+import { getBaseName } from '@/lib/fileValidation';
+
+getBaseName('photo.jpg');        // "photo"
+getBaseName('image.test.png');   // "image.test"
+getBaseName('noextension');      // "noextension"
+getBaseName('.hidden');          // ""
+```
+
+<ParamField path="filename" type="string" required>
+  Filename or path to process
+</ParamField>
+
+<ResponseField name="return" type="string">
+  Filename without the last extension
+</ResponseField>
+
+#### Implementation Notes
+
+- Uses regex: `/\.[^/.]+$/` to remove last extension
+- Preserves dots in the middle of filenames
+- Example: `"image.test.png"` → `"image.test"`
+
+#### Usage Example
+
+From `useImageProcessor.js:252-253`:
+
+```javascript
+const baseName = getBaseName(img.name);
+const newName = `${baseName}.${newExtension}`;
+```
+
+---
+
+### downloadImage
+
+Downloads a single image file to the user's computer.
+
+```javascript
+import { downloadImage } from '@/lib/fileValidation';
+
+const image = {
+  processedFile: blob,  // or null
+  originalFile: file,
+  name: 'my-image.jpg'
+};
+
+downloadImage(image);
+```
+
+<ParamField path="image" type="Object" required>
+  Image object with file and metadata
+  
+  <Expandable title="properties">
+    <ParamField path="processedFile" type="File | Blob">
+      Processed image file (takes priority if present)
+    </ParamField>
+    
+    <ParamField path="originalFile" type="File" required>
+      Original image file (fallback if no processedFile)
+    </ParamField>
+    
+    <ParamField path="name" type="string" required>
+      Filename for the downloaded file
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ResponseField name="return" type="void">
+  No return value (triggers browser download)
+</ResponseField>
+
+#### Implementation Notes
+
+- Uses `file-saver` library's `saveAs()` function
+- Prefers `processedFile` over `originalFile`
+- Triggers browser download dialog
+- Filename is controlled by `image.name`
+
+---
+
+### downloadImagesAsZip
+
+Downloads multiple images as a single ZIP archive.
+
+```javascript
+import { downloadImagesAsZip } from '@/lib/fileValidation';
+
+const images = [
+  { processedFile: blob1, originalFile: file1, name: 'image1.jpg' },
+  { processedFile: blob2, originalFile: file2, name: 'image2.png' }
+];
+
+await downloadImagesAsZip(images, 'my-photos.zip');
+```
+
+<ParamField path="images" type="Array<Object>" required>
+  Array of image objects
+  
+  <Expandable title="item properties">
+    <ParamField path="processedFile" type="File | Blob">
+      Processed image file (takes priority)
+    </ParamField>
+    
+    <ParamField path="originalFile" type="File" required>
+      Original image file (fallback)
+    </ParamField>
+    
+    <ParamField path="name" type="string" required>
+      Filename for this image in the ZIP
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="zipName" type="string" default="images.zip">
+  Filename for the ZIP archive
+</ParamField>
+
+<ResponseField name="return" type="Promise<void>">
+  Resolves when download is triggered
+</ResponseField>
+
+#### Implementation Notes
+
+- Uses `jszip` library to create ZIP archive
+- Uses `file-saver` library to trigger download
+- Creates a folder named `"images"` inside the ZIP
+- Returns early if `images` is empty or null
+- Converts files to `ArrayBuffer` before adding to ZIP
+- Prefers `processedFile` over `originalFile` for each image
+
+#### Algorithm
+
+1. Create new `JSZip` instance
+2. Create `"images"` folder in ZIP
+3. For each image:
+   - Select `processedFile` or `originalFile`
+   - Convert to `ArrayBuffer`
+   - Add to folder with `image.name`
+4. Generate ZIP as Blob
+5. Trigger download with `saveAs()`
+
+---
+
+### validateImageDimensions
+
+Validates that image dimensions don't exceed maximum limits.
+
+```javascript
+import { validateImageDimensions } from '@/lib/fileValidation';
+
+const isValid = await validateImageDimensions(file, 5000, 5000);
+// Returns: true or false
+```
+
+<ParamField path="file" type="File" required>
+  Image file to validate
+</ParamField>
+
+<ParamField path="maxWidth" type="number" default="5000">
+  Maximum width in pixels
+</ParamField>
+
+<ParamField path="maxHeight" type="number" default="5000">
+  Maximum height in pixels
+</ParamField>
+
+<ResponseField name="return" type="Promise<boolean>">
+  `true` if dimensions are within limits, `false` otherwise
+</ResponseField>
+
+#### Implementation Notes
+
+- Creates object URL with `URL.createObjectURL()`
+- Loads image into `Image` element
+- Automatically revokes object URL after loading (prevents memory leak)
+- Returns `false` on load error
+- Default limits: 5000×5000 pixels
+
+---
+
+### getImageDimensions
+
+Retrieves the width and height of an image file.
+
+```javascript
+import { getImageDimensions } from '@/lib/fileValidation';
+
+const dims = await getImageDimensions(file);
+// Returns: { width: 1920, height: 1080 }
+// OR on error: { width: 0, height: 0 }
+```
+
+<ParamField path="file" type="File" required>
+  Image file to measure
+</ParamField>
+
+<ResponseField name="return" type="Promise<Object>">
+  Dimensions object
+  
+  <Expandable title="properties">
+    <ResponseField name="width" type="number">
+      Image width in pixels (0 on error)
+    </ResponseField>
+    
+    <ResponseField name="height" type="number">
+      Image height in pixels (0 on error)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+#### Implementation Notes
+
+- Creates object URL with `URL.createObjectURL()`
+- Loads image into `Image` element to read dimensions
+- Automatically revokes object URL after loading
+- Returns `{ width: 0, height: 0 }` on error
+- Never rejects - always resolves with valid object
+
+---
+
+### getImagePreview
+
+Generates an object URL for previewing an image file.
+
+```javascript
+import { getImagePreview } from '@/lib/fileValidation';
+
+const previewUrl = getImagePreview(file);
+// Returns: "blob:http://localhost:3000/abc123..."
+
+// Use in img tag:
+<img src={previewUrl} alt="Preview" />
+
+// Remember to revoke when done:
+URL.revokeObjectURL(previewUrl);
+```
+
+<ParamField path="file" type="File" required>
+  Image file to create preview for
+</ParamField>
+
+<ResponseField name="return" type="string">
+  Object URL for the file (starts with `"blob:"`)
+</ResponseField>
+
+#### Implementation Notes
+
+- Simple wrapper around `URL.createObjectURL(file)`
+- Creates temporary URL that points to file in memory
+- **Important**: Must manually revoke URL with `URL.revokeObjectURL()` to prevent memory leaks
+- URL is only valid in current browser session
+
+#### Usage Example
+
+From `useImageUpload.js:72`:
+
+```javascript
+let preview;
+if (isLargeImage) {
+  // For large images, create low-resolution preview
+  preview = await createLowResPreview(file);
+} else {
+  // For normal images, use standard preview
+  preview = getImagePreview(file);
+}
+```
+
+---
+
+## Constants Reference
+
+File validation uses these constants from `@/lib/constants.js`:
+
+```javascript
+// File size thresholds
+export const LARGE_IMAGE_THRESHOLD = 10 * 1024 * 1024; // 10 MB
+export const MEMORY_WARNING_THRESHOLD = 500 * 1024 * 1024; // 500 MB
+```
+
+## Best Practices
+
+### Memory Management
+
+Always revoke object URLs when done:
+
+```javascript
+const preview = getImagePreview(file);
+
+// Use the preview...
+
+// Clean up when component unmounts or image is removed:
+URL.revokeObjectURL(preview);
+```
+
+### File Validation Flow
+
+```javascript
+import { isImageFile, validateFileSize, formatFileSize } from '@/lib/fileValidation';
+
+function validateFile(file) {
+  // 1. Check file type
+  if (!isImageFile(file)) {
+    return { valid: false, error: 'Invalid file type' };
+  }
+  
+  // 2. Check file size
+  const sizeCheck = validateFileSize(file, 60);
+  if (!sizeCheck.valid) {
+    return { valid: false, error: sizeCheck.message };
+  }
+  
+  // 3. Format size for display
+  const formattedSize = formatFileSize(file.size);
+  
+  return { valid: true, size: formattedSize };
+}
+```
+
+### Filename Manipulation
+
+```javascript
+import { getBaseName, getFileExtension } from '@/lib/fileValidation';
+
+const filename = 'photo.jpg';
+const baseName = getBaseName(filename);  // "photo"
+const extension = getFileExtension(filename);  // "jpg"
+
+// Create new filename with different extension
+const newFilename = `${baseName}.webp`;  // "photo.webp"
+```

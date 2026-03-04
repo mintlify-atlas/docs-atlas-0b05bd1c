@@ -1,0 +1,335 @@
+---
+title: 'Constants'
+description: 'Configuration constants for batch processing, memory management, and image processing in PixelFlow'
+icon: 'sliders'
+---
+
+## Overview
+
+The `constants.js` file contains all configuration constants used throughout PixelFlow. These values control batch processing behavior, memory thresholds, image quality settings, and default dimensions.
+
+All constants are exported as named exports and can be imported individually as needed.
+
+## Batch Processing
+
+Constants that control how images are processed in batches to optimize performance and memory usage.
+
+<ResponseField name="UPLOAD_BATCH_SIZE" type="number" default="3">
+  Number of images to load simultaneously in each upload batch. Controls parallelism during file upload to prevent memory overload.
+  
+  **Location:** Used in `src/hooks/useImageUpload.js`
+</ResponseField>
+
+<ResponseField name="PROCESSING_BATCH_SIZE" type="number" default="3">
+  Number of images to process simultaneously in each processing batch. Applied during optimization, resize, crop, and format conversion operations.
+  
+  **Location:** Used in `src/hooks/useImageProcessor.js`
+</ResponseField>
+
+<ResponseField name="DOWNLOAD_BATCH_SIZE" type="number" default="5">
+  Number of images to prepare simultaneously in each download batch when creating ZIP archives.
+  
+  **Location:** Used in `src/components/DownloadButton.jsx`
+</ResponseField>
+
+<ResponseField name="UPLOAD_PROGRESS_THRESHOLD" type="number" default="5">
+  Minimum number of files required to display a progress indicator during upload. If fewer files are uploaded, no progress bar is shown.
+</ResponseField>
+
+## Memory Thresholds
+
+Constants that define memory management behavior and when to trigger warnings or optimizations.
+
+<ResponseField name="LARGE_IMAGE_THRESHOLD" type="number" default="10485760">
+  File size in bytes (10 MB) above which an image is considered "large". Large images trigger low-resolution preview generation to conserve memory.
+  
+  **Calculated as:** `10 * 1024 * 1024`
+  
+  **Location:** Used in `src/lib/memoryManager.js`
+</ResponseField>
+
+<ResponseField name="MEMORY_WARNING_THRESHOLD" type="number" default="524288000">
+  Estimated memory usage in bytes (500 MB) that triggers a memory warning. Used to alert users when processing large batches of images.
+  
+  **Calculated as:** `500 * 1024 * 1024`
+  
+  **Location:** Used in `src/lib/memoryManager.js`
+</ResponseField>
+
+<ResponseField name="BYTES_PER_PIXEL_RGBA" type="number" default="4">
+  Number of bytes per pixel in an uncompressed RGBA image. Used for memory estimation calculations.
+  
+  **Format:** 4 bytes = Red (1) + Green (1) + Blue (1) + Alpha (1)
+</ResponseField>
+
+<ResponseField name="ESTIMATED_COMPRESSION_RATIO" type="number" default="10">
+  Estimated compression ratio used to calculate memory usage from file size. Assumes compressed images expand approximately 10x when loaded into memory.
+</ResponseField>
+
+## Image Optimization
+
+Constants for the optimization operation that reduces file size and dimensions.
+
+<ResponseField name="OPTIMIZE_MAX_SIZE_MB" type="number" default="1">
+  Maximum file size in megabytes for optimized images. Images are compressed to stay under this limit.
+  
+  **Location:** Used in `src/lib/imageProcessing.js` with `browser-image-compression`
+</ResponseField>
+
+<ResponseField name="OPTIMIZE_MAX_DIMENSION" type="number" default="1920">
+  Maximum dimension (width or height) in pixels for optimized images. Larger images are scaled down while preserving aspect ratio.
+  
+  **Location:** Used in `src/lib/imageProcessing.js`
+</ResponseField>
+
+## Default Dimensions
+
+Default values used when users don't specify custom dimensions for resize and crop operations.
+
+<ResponseField name="DEFAULT_RESIZE_WIDTH" type="number" default="800">
+  Default width in pixels for resize operations.
+  
+  **Location:** Used in `src/components/Tools/ResizeTool.jsx`
+</ResponseField>
+
+<ResponseField name="DEFAULT_RESIZE_HEIGHT" type="number" default="600">
+  Default height in pixels for resize operations.
+  
+  **Location:** Used in `src/components/Tools/ResizeTool.jsx`
+</ResponseField>
+
+<ResponseField name="DEFAULT_CROP_WIDTH" type="number" default="1000">
+  Default width in pixels for crop operations.
+  
+  **Location:** Used in `src/components/Tools/CropTool.jsx`
+</ResponseField>
+
+<ResponseField name="DEFAULT_CROP_HEIGHT" type="number" default="1000">
+  Default height in pixels for crop operations.
+  
+  **Location:** Used in `src/components/Tools/CropTool.jsx`
+</ResponseField>
+
+## Image Quality Settings
+
+Quality values for various image processing operations. Note that different libraries use different scales.
+
+<ResponseField name="FORMAT_CONVERSION_QUALITY" type="number" default="0.92">
+  Quality setting for format conversion operations using canvas API. Range is 0-1, where 1 is maximum quality.
+  
+  **Scale:** 0 (lowest) to 1 (highest)
+  
+  **Location:** Used in `src/lib/imageProcessing.js` for `canvas.toBlob()`
+</ResponseField>
+
+<ResponseField name="RESIZE_QUALITY" type="number" default="100">
+  Maximum quality setting for the `react-image-file-resizer` library. Range is 0-100.
+  
+  **Scale:** 0 (lowest) to 100 (highest)
+  
+  **Location:** Used in `src/lib/imageProcessing.js`
+</ResponseField>
+
+<ResponseField name="MEMORY_COMPRESSION_QUALITY" type="number" default="0.85">
+  Quality setting when compressing images for memory management. Range is 0-1.
+  
+  **Scale:** 0 (lowest) to 1 (highest)
+  
+  **Location:** Used in `src/lib/memoryManager.js`
+</ResponseField>
+
+<ResponseField name="LOW_RES_PREVIEW_QUALITY" type="number" default="0.5">
+  Quality setting for low-resolution preview generation. Lower quality reduces memory footprint for large images.
+  
+  **Scale:** 0 (lowest) to 1 (highest)
+  
+  **Location:** Used in `src/lib/memoryManager.js`
+</ResponseField>
+
+## Memory Management Dimensions
+
+Dimension constraints used during memory optimization operations.
+
+<ResponseField name="MEMORY_MAX_WIDTH" type="number" default="1920">
+  Maximum width in pixels when compressing images to save memory. Images wider than this are scaled down.
+  
+  **Location:** Used in `src/lib/memoryManager.js`
+</ResponseField>
+
+<ResponseField name="MEMORY_MAX_HEIGHT" type="number" default="1080">
+  Maximum height in pixels when compressing images to save memory. Images taller than this are scaled down.
+  
+  **Location:** Used in `src/lib/memoryManager.js`
+</ResponseField>
+
+<ResponseField name="PREVIEW_SIZE" type="number" default="300">
+  Size in pixels for the longest side of low-resolution preview images. Used for large files to reduce memory usage.
+  
+  **Location:** Used in `src/lib/memoryManager.js`
+</ResponseField>
+
+<ResponseField name="IMAGE_CHUNK_SIZE" type="number" default="1024">
+  Size in pixels for each chunk when splitting large images during processing.
+  
+  **Location:** Used in `src/lib/imageProcessing.js`
+</ResponseField>
+
+## Usage Examples
+
+### Importing Constants
+
+```javascript
+// Import specific constants
+import { UPLOAD_BATCH_SIZE, PROCESSING_BATCH_SIZE } from '@/lib/constants';
+
+// Import multiple constants
+import {
+  LARGE_IMAGE_THRESHOLD,
+  MEMORY_WARNING_THRESHOLD,
+  OPTIMIZE_MAX_SIZE_MB,
+} from '@/lib/constants';
+```
+
+### Using Batch Size Constants
+
+```javascript
+import { UPLOAD_BATCH_SIZE } from '@/lib/constants';
+
+function processImagesInBatches(images) {
+  const batches = [];
+  for (let i = 0; i < images.length; i += UPLOAD_BATCH_SIZE) {
+    batches.push(images.slice(i, i + UPLOAD_BATCH_SIZE));
+  }
+  return batches;
+}
+```
+
+### Checking File Size Thresholds
+
+```javascript
+import { LARGE_IMAGE_THRESHOLD } from '@/lib/constants';
+
+function isLargeImage(file) {
+  return file.size > LARGE_IMAGE_THRESHOLD;
+}
+
+// Example usage
+const file = new File([blob], 'image.jpg');
+if (isLargeImage(file)) {
+  console.log('Generating low-res preview for large image');
+  // Generate preview...
+}
+```
+
+### Memory Estimation
+
+```javascript
+import {
+  BYTES_PER_PIXEL_RGBA,
+  ESTIMATED_COMPRESSION_RATIO,
+  MEMORY_WARNING_THRESHOLD,
+} from '@/lib/constants';
+
+function estimateMemoryUsage(images) {
+  const totalBytes = images.reduce((sum, img) => {
+    return sum + img.size * ESTIMATED_COMPRESSION_RATIO;
+  }, 0);
+
+  if (totalBytes > MEMORY_WARNING_THRESHOLD) {
+    console.warn('High memory usage detected');
+  }
+
+  return totalBytes;
+}
+```
+
+### Image Quality Configuration
+
+```javascript
+import { FORMAT_CONVERSION_QUALITY, RESIZE_QUALITY } from '@/lib/constants';
+
+function convertImageFormat(canvas, format) {
+  return new Promise((resolve) => {
+    canvas.toBlob(
+      (blob) => resolve(blob),
+      `image/${format}`,
+      FORMAT_CONVERSION_QUALITY
+    );
+  });
+}
+```
+
+### Using Default Dimensions
+
+```javascript
+import { DEFAULT_RESIZE_WIDTH, DEFAULT_RESIZE_HEIGHT } from '@/lib/constants';
+
+function ResizeTool() {
+  const [width, setWidth] = useState(DEFAULT_RESIZE_WIDTH);
+  const [height, setHeight] = useState(DEFAULT_RESIZE_HEIGHT);
+
+  return (
+    <div>
+      <input
+        type="number"
+        value={width}
+        onChange={(e) => setWidth(e.target.value)}
+        placeholder={DEFAULT_RESIZE_WIDTH}
+      />
+      <input
+        type="number"
+        value={height}
+        onChange={(e) => setHeight(e.target.value)}
+        placeholder={DEFAULT_RESIZE_HEIGHT}
+      />
+    </div>
+  );
+}
+```
+
+## Constants by Category
+
+### Batch Processing
+- `UPLOAD_BATCH_SIZE` (3)
+- `PROCESSING_BATCH_SIZE` (3)
+- `DOWNLOAD_BATCH_SIZE` (5)
+- `UPLOAD_PROGRESS_THRESHOLD` (5)
+
+### Memory Management
+- `LARGE_IMAGE_THRESHOLD` (10 MB)
+- `MEMORY_WARNING_THRESHOLD` (500 MB)
+- `BYTES_PER_PIXEL_RGBA` (4)
+- `ESTIMATED_COMPRESSION_RATIO` (10)
+- `MEMORY_MAX_WIDTH` (1920px)
+- `MEMORY_MAX_HEIGHT` (1080px)
+- `PREVIEW_SIZE` (300px)
+
+### Quality Settings
+- `FORMAT_CONVERSION_QUALITY` (0.92)
+- `RESIZE_QUALITY` (100)
+- `MEMORY_COMPRESSION_QUALITY` (0.85)
+- `LOW_RES_PREVIEW_QUALITY` (0.5)
+
+### Optimization
+- `OPTIMIZE_MAX_SIZE_MB` (1 MB)
+- `OPTIMIZE_MAX_DIMENSION` (1920px)
+
+### Default Dimensions
+- `DEFAULT_RESIZE_WIDTH` (800px)
+- `DEFAULT_RESIZE_HEIGHT` (600px)
+- `DEFAULT_CROP_WIDTH` (1000px)
+- `DEFAULT_CROP_HEIGHT` (1000px)
+
+### Processing
+- `IMAGE_CHUNK_SIZE` (1024px)
+
+## File Location
+
+**Source:** `src/lib/constants.js`
+
+## Related Files
+
+- `src/lib/memoryManager.js` - Memory management utilities
+- `src/lib/imageProcessing.js` - Image processing functions
+- `src/hooks/useImageUpload.js` - Upload handling
+- `src/hooks/useImageProcessor.js` - Processing pipeline

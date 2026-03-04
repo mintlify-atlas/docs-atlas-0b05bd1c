@@ -1,0 +1,644 @@
+---
+title: Features
+description: Comprehensive guide to all PixelFlow features including optimization, format conversion, resizing, cropping, batch operations, and customization
+---
+
+# Features Overview
+
+PixelFlow provides a complete suite of image processing tools designed for professional workflows. All features work entirely in your browser with no server uploads required.
+
+<CardGroup cols={2}>
+  <Card title="Image Optimization" icon="gauge-high" color="#a855f7">
+    Intelligent compression that reduces file sizes while maintaining visual quality
+  </Card>
+  <Card title="Format Conversion" icon="file-export" color="#9333ea">
+    Convert between JPG, PNG, WEBP, and GIF formats with canvas-based processing
+  </Card>
+  <Card title="Smart Resizing" icon="up-right-and-down-left-from-center" color="#7e22ce">
+    Resize by pixels or percentage with automatic aspect ratio preservation
+  </Card>
+  <Card title="Precision Cropping" icon="crop" color="#6d28d9">
+    Crop with preset ratios and 9-position control for perfect framing
+  </Card>
+</CardGroup>
+
+---
+
+## Image Optimization
+
+PixelFlow uses `browser-image-compression` to reduce file sizes without noticeable quality loss.
+
+### How It Works
+
+<Steps>
+  <Step title="Enable Optimization">
+    Toggle the **Optimize** switch in the Tools panel. Optimization is enabled by default.
+  </Step>
+  
+  <Step title="Automatic Compression">
+    When you click **Optimizar**, images are compressed using these settings:
+    - Maximum file size: **1 MB**
+    - Maximum dimension: **1920px** (width or height)
+    - Web Worker support for non-blocking processing
+  </Step>
+  
+  <Step title="View Results">
+    See optimization statistics for each image including original size, new size, and percentage reduction.
+  </Step>
+</Steps>
+
+### Configuration
+
+Optimization settings are defined in `src/lib/constants.js`:
+
+```js src/lib/constants.js
+/** Maximum file size after optimization in MB */
+export const OPTIMIZE_MAX_SIZE_MB = 1;
+
+/** Maximum dimension (width or height) in pixels */
+export const OPTIMIZE_MAX_DIMENSION = 1920;
+```
+
+### Example
+
+```jsx src/hooks/useImageProcessor.js
+// Optimization is applied first in the processing pipeline
+if (processingSettings.optimize) {
+  processedFile = await optimizeImage(processedFile, {
+    maxSizeMB: OPTIMIZE_MAX_SIZE_MB,
+    maxWidthOrHeight: OPTIMIZE_MAX_DIMENSION,
+    useWebWorker: true,
+  });
+  fileChanged = true;
+}
+```
+
+<Note>
+  Optimization is always the **first step** in the processing pipeline, before resize, crop, or format conversion.
+</Note>
+
+---
+
+## Format Conversion
+
+Convert images between popular web formats using canvas-based rendering.
+
+### Supported Formats
+
+<CardGroup cols={4}>
+  <Card title="JPG" icon="image">
+    Best for photos without transparency
+  </Card>
+  <Card title="PNG" icon="image">
+    Supports transparency, great for logos
+  </Card>
+  <Card title="WEBP" icon="image">
+    Modern format with superior compression
+  </Card>
+  <Card title="GIF" icon="image">
+    For simple animations and graphics
+  </Card>
+</CardGroup>
+
+### How to Convert
+
+<Steps>
+  <Step title="Select Format">
+    In the **Formato de salida** section, choose your target format from the dropdown.
+  </Step>
+  
+  <Step title="Process Images">
+    Click **Optimizar** to apply the conversion. Format conversion is the last step in the pipeline.
+  </Step>
+  
+  <Step title="Download">
+    Files are renamed with the correct extension (`.jpg`, `.png`, `.webp`, `.gif`).
+  </Step>
+</Steps>
+
+### Implementation Details
+
+```js src/lib/imageProcessing.js
+export const convertImageFormat = async (file, format) => {
+  // Determine MIME type
+  let mimeType;
+  switch (format.toLowerCase()) {
+    case 'jpg':
+    case 'jpeg':
+      mimeType = 'image/jpeg';
+      break;
+    case 'png':
+      mimeType = 'image/png';
+      break;
+    case 'webp':
+      mimeType = 'image/webp';
+      break;
+    case 'gif':
+      mimeType = 'image/gif';
+      break;
+  }
+  
+  // Create canvas and convert
+  const canvas = document.createElement('canvas');
+  canvas.width = img.width;
+  canvas.height = img.height;
+  const ctx = canvas.getContext('2d');
+  
+  // White background for JPG (no transparency)
+  if (format === 'image/jpeg') {
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+  
+  ctx.drawImage(img, 0, 0);
+  const blob = await canvas.toBlob(callback, mimeType, 0.92);
+  return new File([blob], `image.${extension}`, { type: mimeType });
+};
+```
+
+<Warning>
+  **Transparency Loss**: Converting to JPG will replace transparent areas with white background. Use PNG or WEBP to preserve transparency.
+</Warning>
+
+---
+
+## Smart Resizing
+
+Resize images by exact pixels or percentage with aspect ratio preservation.
+
+### Units
+
+<Tabs>
+  <Tab title="Pixels (px)">
+    Specify exact dimensions for output images:
+    ```
+    Width: 1200px
+    Height: 800px (calculated automatically if aspect ratio is locked)
+    ```
+  </Tab>
+  
+  <Tab title="Percentage (%)">
+    Scale relative to original size:
+    ```
+    Width: 50%
+    Result: Original 2000x1500 → New 1000x750
+    ```
+  </Tab>
+</Tabs>
+
+### Aspect Ratio Lock
+
+When **Mantener proporción** is enabled:
+
+<Steps>
+  <Step title="Change Width">
+    Height is automatically calculated: `height = width / aspectRatio`
+  </Step>
+  
+  <Step title="Change Height">
+    Width is automatically calculated: `width = height * aspectRatio`
+  </Step>
+  
+  <Step title="Ratio Preservation">
+    The aspect ratio is saved when you enable the lock, based on current width/height values.
+  </Step>
+</Steps>
+
+### Code Example
+
+```jsx src/hooks/useImageProcessor.js
+const updateResizeSettings = (settings) => {
+  // If aspect ratio is locked and width changes
+  if (processingSettings.resize.maintainAspectRatio && settings.hasOwnProperty('width')) {
+    const newWidth = settings.width;
+    const newHeight = Math.round(newWidth / aspectRatio);
+    
+    setProcessingSettings((prev) => ({
+      ...prev,
+      resize: {
+        ...prev.resize,
+        width: newWidth,
+        height: newHeight,
+      },
+    }));
+  }
+};
+```
+
+### Percentage Calculation
+
+```js src/lib/imageProcessing.js
+export const calculatePercentageDimensions = async (file, widthPercent, maintainAspectRatio) => {
+  // Load image to get original dimensions
+  const img = await loadImage(file);
+  
+  // Calculate new width
+  const newWidth = Math.round(img.width * (widthPercent / 100));
+  
+  // Calculate new height
+  let newHeight;
+  if (maintainAspectRatio) {
+    const aspectRatio = img.width / img.height;
+    newHeight = Math.round(newWidth / aspectRatio);
+  } else {
+    newHeight = Math.round(img.height * (widthPercent / 100));
+  }
+  
+  return { width: newWidth, height: newHeight };
+};
+```
+
+<Tip>
+  The resize tool uses the **width** as the reference dimension when aspect ratio is locked.
+</Tip>
+
+---
+
+## Precision Cropping
+
+Extract specific regions from images with preset aspect ratios and position control.
+
+### Crop Presets
+
+<CardGroup cols={3}>
+  <Card title="Square (1:1)" icon="square">
+    Perfect for profile pictures, Instagram posts, and product photos
+  </Card>
+  <Card title="Landscape 16:9" icon="rectangle-wide">
+    Standard video format, YouTube thumbnails, and presentations
+  </Card>
+  <Card title="Landscape 4:3" icon="rectangle-wide">
+    Classic photo format, traditional displays
+  </Card>
+  <Card title="Portrait 9:16" icon="rectangle-vertical">
+    Instagram/TikTok stories, mobile-first content
+  </Card>
+  <Card title="Portrait 3:4" icon="rectangle-vertical">
+    Portrait photos, vertical social media posts
+  </Card>
+</CardGroup>
+
+### Position Options
+
+Choose where to extract the crop from:
+
+```
+┌─────────┬─────────┬─────────┐
+│ Top     │  Top    │ Top     │
+│ Left    │ Center  │ Right   │
+├─────────┼─────────┼─────────┤
+│ Center  │ Center  │ Center  │
+│ Left    │ (default)│ Right   │
+├─────────┼─────────┼─────────┤
+│ Bottom  │ Bottom  │ Bottom  │
+│ Left    │ Center  │ Right   │
+└─────────┴─────────┴─────────┘
+```
+
+### Implementation
+
+```js src/lib/imageProcessing.js
+export const cropImage = async (file, width, height, position = 'center') => {
+  const img = await loadImage(file);
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  
+  // Calculate source coordinates based on position
+  let sourceX, sourceY;
+  
+  // Horizontal positioning
+  if (position.includes('left')) {
+    sourceX = 0;
+  } else if (position.includes('right')) {
+    sourceX = Math.max(0, img.width - width);
+  } else {
+    sourceX = Math.max(0, (img.width - width) / 2); // center
+  }
+  
+  // Vertical positioning
+  if (position.includes('top')) {
+    sourceY = 0;
+  } else if (position.includes('bottom')) {
+    sourceY = Math.max(0, img.height - height);
+  } else {
+    sourceY = Math.max(0, (img.height - height) / 2); // center
+  }
+  
+  // Draw cropped region
+  ctx.drawImage(img, sourceX, sourceY, width, height, 0, 0, width, height);
+  
+  return canvas.toBlob();
+};
+```
+
+<Note>
+  Cropping is applied **after resizing** in the processing pipeline, so you crop from already-resized dimensions.
+</Note>
+
+---
+
+## Batch Operations
+
+Process multiple images efficiently with intelligent batching and memory management.
+
+### Upload Batching
+
+```js src/lib/constants.js
+/** Number of images to upload simultaneously */
+export const UPLOAD_BATCH_SIZE = 3;
+
+/** Minimum files to show progress indicator */
+export const UPLOAD_PROGRESS_THRESHOLD = 5;
+```
+
+<Steps>
+  <Step title="Drag & Drop">
+    Select up to 20 images at once (or use the file picker).
+  </Step>
+  
+  <Step title="Batch Processing">
+    Images are loaded in groups of 3 to prevent memory issues.
+  </Step>
+  
+  <Step title="Progress Tracking">
+    For 5+ images, see a progress indicator: "Processing images 1-3 of 15..."
+  </Step>
+</Steps>
+
+### Processing Pipeline
+
+```js src/hooks/useImageProcessor.js
+const processImages = async () => {
+  const BATCH_SIZE = 3;
+  const processedResults = [];
+  
+  // Process in batches
+  for (let i = 0; i < uploadedImages.length; i += BATCH_SIZE) {
+    const batch = uploadedImages.slice(i, i + BATCH_SIZE);
+    
+    const batchResults = await Promise.all(
+      batch.map(async (img) => {
+        let processedFile = img.file;
+        
+        // 1. Optimize
+        if (processingSettings.optimize) {
+          processedFile = await optimizeImage(processedFile, {...});
+        }
+        
+        // 2. Resize
+        if (processingSettings.resize.enabled) {
+          processedFile = await resizeImage(processedFile, width, height);
+        }
+        
+        // 3. Crop
+        if (processingSettings.crop.enabled) {
+          processedFile = await cropImage(processedFile, width, height, position);
+        }
+        
+        // 4. Convert Format
+        if (processingSettings.format !== 'original') {
+          processedFile = await convertImageFormat(processedFile, format);
+        }
+        
+        return { ...img, processedFile, processed: true };
+      })
+    );
+    
+    processedResults.push(...batchResults);
+    
+    // Allow browser to update UI
+    await new Promise(resolve => setTimeout(resolve, 10));
+  }
+  
+  setProcessedImages(processedResults);
+};
+```
+
+### Download Batching
+
+```js src/lib/constants.js
+/** Number of images to prepare for download simultaneously */
+export const DOWNLOAD_BATCH_SIZE = 5;
+```
+
+When downloading as ZIP, images are added in batches of 5 to keep the UI responsive.
+
+---
+
+## File Renaming
+
+Batch rename files with three powerful modes.
+
+### Sequential Numbering
+
+<ParamField path="prefix" type="string" default="IMG_">
+  Text to prepend before the number
+</ParamField>
+
+<ParamField path="startNumber" type="number" default="1">
+  First number in the sequence
+</ParamField>
+
+<ParamField path="digits" type="number" default="3">
+  Number of digits with zero-padding (e.g., 001, 002, 003)
+</ParamField>
+
+**Example Output:**
+```
+IMG_001.jpg
+IMG_002.jpg
+IMG_003.jpg
+```
+
+### Add Text
+
+<ParamField path="text" type="string">
+  Text to add to filenames
+</ParamField>
+
+<ParamField path="position" type="enum">
+  `prefix` or `suffix`
+</ParamField>
+
+**Example:**
+```
+Prefix "vacation_" → vacation_photo1.jpg, vacation_photo2.jpg
+Suffix "_edited" → photo1_edited.jpg, photo2_edited.jpg
+```
+
+### Find & Replace
+
+<ParamField path="search" type="string">
+  Text pattern to find (supports regex)
+</ParamField>
+
+<ParamField path="replace" type="string">
+  Replacement text
+</ParamField>
+
+**Example:**
+```
+Search: "IMG" Replace: "Photo" → IMG_001.jpg becomes Photo_001.jpg
+```
+
+### Clean Text Option
+
+When enabled, filenames are automatically cleaned:
+
+```js src/hooks/useImageRename.js
+const cleanFileName = (name) => {
+  return name
+    .replace(/[^\w\s.-]/g, '')  // Remove special characters
+    .replace(/\s+/g, '_')        // Replace spaces with underscores
+    .toLowerCase();              // Convert to lowercase
+};
+```
+
+<Tip>
+  Renaming happens **reactively** via `useEffect` whenever processed images or rename settings change.
+</Tip>
+
+---
+
+## Memory Management
+
+PixelFlow includes intelligent memory management to prevent browser crashes.
+
+### Large Image Detection
+
+```js src/lib/constants.js
+/** File size threshold for "large" images (10 MB) */
+export const LARGE_IMAGE_THRESHOLD = 10 * 1024 * 1024;
+```
+
+Images over 10MB automatically get low-resolution previews:
+
+```js src/hooks/useImageUpload.js
+const isLargeImage = file.size > LARGE_IMAGE_THRESHOLD;
+
+let preview;
+if (isLargeImage) {
+  // Create 300px low-res preview
+  preview = await createLowResPreview(file);
+} else {
+  // Use full resolution
+  preview = getImagePreview(file);
+}
+```
+
+### Memory Estimation
+
+```js src/lib/memoryManager.js
+export const estimateImageMemoryUsage = (file) => {
+  // Uncompressed RGBA: width * height * 4 bytes per pixel
+  // Estimate using compression ratio
+  const estimatedPixels = file.size * ESTIMATED_COMPRESSION_RATIO;
+  return estimatedPixels * BYTES_PER_PIXEL_RGBA;
+};
+```
+
+### Memory Warning
+
+```js src/lib/constants.js
+/** Memory usage threshold for warnings (500 MB) */
+export const MEMORY_WARNING_THRESHOLD = 500 * 1024 * 1024;
+```
+
+Users are warned when processing images that may consume excessive memory.
+
+<Warning>
+  **Browser Limits**: Most browsers limit tabs to 2-4GB of memory. Large batches of high-resolution images may cause performance issues.
+</Warning>
+
+---
+
+## Brand Customization
+
+White-label PixelFlow with your company branding.
+
+### Customizable Elements
+
+<CardGroup cols={2}>
+  <Card title="Application Name" icon="heading">
+    Change "PixelFlow" to your brand name
+  </Card>
+  <Card title="Logo" icon="image">
+    Upload your company logo (PNG/SVG recommended)
+  </Card>
+  <Card title="Primary Color" icon="palette">
+    Buttons, switches, and interactive elements
+  </Card>
+  <Card title="Secondary Color" icon="palette">
+    Accents and visual details
+  </Card>
+  <Card title="Background Color" icon="fill">
+    Application background
+  </Card>
+</CardGroup>
+
+### Configuration Panel
+
+Access via the **Configurar** button in the header:
+
+```jsx src/components/Common/BrandConfigPanel.jsx
+const BrandConfigPanel = ({ onSave, onClose }) => {
+  const { brandSettings } = useBrand();
+  
+  return (
+    <Form initialValues={brandSettings}>
+      <Form.Item label="Nombre de la aplicación">
+        <Input placeholder="PixelFlow" />
+      </Form.Item>
+      
+      <Form.Item label="Logo">
+        <Upload accept="image/*" />
+      </Form.Item>
+      
+      <Form.Item label="Color primario">
+        <ColorPicker color={brandSettings.colors.primary} />
+      </Form.Item>
+      
+      {/* More fields... */}
+    </Form>
+  );
+};
+```
+
+### Persistence
+
+Settings are saved to `localStorage`:
+
+```js src/context/BrandContext.jsx
+const STORAGE_KEY = 'pixelflow_brand_settings';
+
+const saveBrandSettings = (settings) => {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+};
+
+const loadBrandSettings = () => {
+  const saved = localStorage.getItem(STORAGE_KEY);
+  return saved ? JSON.parse(saved) : defaultBrandConfig;
+};
+```
+
+<Tip>
+  Customization persists across browser sessions until localStorage is cleared.
+</Tip>
+
+---
+
+## Next Steps
+
+<CardGroup cols={3}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Get PixelFlow running in minutes
+  </Card>
+  <Card title="Installation" icon="download" href="/installation">
+    Set up your development environment
+  </Card>
+  <Card title="Configuration" icon="gear" href="/configuration">
+    Customize default settings
+  </Card>
+</CardGroup>

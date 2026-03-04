@@ -1,0 +1,353 @@
+---
+title: 'Brand Customization'
+description: 'Customize logos, colors, and branding using BrandContext and localStorage persistence'
+---
+
+## Overview
+
+PixelFlow provides a flexible branding system powered by React Context that allows you to customize the application's appearance, including logos, colors, typography, and theme settings. All customizations are persisted to localStorage for a consistent user experience across sessions.
+
+## Brand Context Architecture
+
+The branding system is built around `BrandContext` (`src/context/BrandContext.jsx`), which provides global access to brand settings throughout the application.
+
+### Core Components
+
+<CodeGroup>
+```jsx BrandProvider
+import { BrandProvider } from '@/context/BrandContext';
+
+function App() {
+  return (
+    <BrandProvider>
+      {/* Your application components */}
+    </BrandProvider>
+  );
+}
+```
+
+```jsx useBrand Hook
+import { useBrand } from '@/context/BrandContext';
+
+function MyComponent() {
+  const { brandSettings, updateBrandSettings } = useBrand();
+  
+  return (
+    <div style={{ color: brandSettings.colors.primary }}>
+      {brandSettings.appName}
+    </div>
+  );
+}
+```
+</CodeGroup>
+
+## Default Brand Configuration
+
+The default brand settings are defined in `src/config/brandConfig.js`:
+
+```js src/config/brandConfig.js
+const brandConfig = {
+  // Application name
+  appName: 'PixelFlow',
+
+  // Logo settings
+  logoUrl: null,  // null = use appName text instead
+  logoWidth: 40,
+  logoHeight: 40,
+
+  // Color palette
+  colors: {
+    primary: '#a855f7',        // Violet (main brand color)
+    secondary: '#818cf8',      // Light violet (accents)
+    background: '#f5f5f5',     // Light gray
+    headerBackground: '#ffffff',
+    footerBackground: '#ffffff',
+    textPrimary: '#000000',
+    textSecondary: '#6b7280',  // Gray
+  },
+
+  // Theme settings
+  theme: {
+    borderRadius: 8,           // Border radius in pixels
+    fontFamily: 'Segoe UI, system-ui, sans-serif',
+  },
+};
+```
+
+## Customizing Brand Settings
+
+### Updating Settings Programmatically
+
+Use the `updateBrandSettings` function to modify brand settings at runtime:
+
+```jsx
+import { useBrand } from '@/context/BrandContext';
+
+function BrandCustomizer() {
+  const { brandSettings, updateBrandSettings } = useBrand();
+
+  const changePrimaryColor = (newColor) => {
+    updateBrandSettings({
+      ...brandSettings,
+      colors: {
+        ...brandSettings.colors,
+        primary: newColor,
+      },
+    });
+  };
+
+  return (
+    <input 
+      type="color" 
+      value={brandSettings.colors.primary}
+      onChange={(e) => changePrimaryColor(e.target.value)}
+    />
+  );
+}
+```
+
+### Custom Logo Setup
+
+<Steps>
+  <Step title="Add Logo Image">
+    Place your logo file in the `public/` directory (e.g., `/public/logo.png`)
+  </Step>
+  
+  <Step title="Update Configuration">
+    Modify the logo settings:
+    ```js
+    updateBrandSettings({
+      ...brandSettings,
+      logoUrl: '/logo.png',
+      logoWidth: 120,
+      logoHeight: 40,
+    });
+    ```
+  </Step>
+  
+  <Step title="Test Display">
+    The logo will automatically render in the header via `BrandLogo` component
+  </Step>
+</Steps>
+
+<Tip>
+  Use `logoUrl: null` to display the `appName` text instead of an image logo.
+</Tip>
+
+## localStorage Persistence
+
+The BrandContext automatically persists settings to localStorage using the key `pixelflow_brand_settings`.
+
+### How It Works
+
+<CodeGroup>
+```jsx Save to localStorage (src/context/BrandContext.jsx:17-26)
+const updateBrandSettings = (newSettings) => {
+  setBrandSettings(newSettings);
+
+  try {
+    localStorage.setItem(
+      'pixelflow_brand_settings', 
+      JSON.stringify(newSettings)
+    );
+  } catch (error) {
+    logger.error('Error al guardar configuración de marca:', error);
+  }
+};
+```
+
+```jsx Load from localStorage (src/context/BrandContext.jsx:29-38)
+useEffect(() => {
+  try {
+    const savedSettings = localStorage.getItem('pixelflow_brand_settings');
+    if (savedSettings) {
+      setBrandSettings(JSON.parse(savedSettings));
+    }
+  } catch (error) {
+    logger.error('Error al cargar configuración de marca:', error);
+  }
+}, []);
+```
+</CodeGroup>
+
+<Warning>
+  localStorage has a typical limit of **5-10MB** per domain. Brand settings are small (&lt;1KB), but avoid storing large assets like images directly in localStorage.
+</Warning>
+
+## Color Customization
+
+### Available Color Properties
+
+| Property | Default | Usage |
+|----------|---------|-------|
+| `primary` | `#a855f7` | Buttons, switches, primary actions |
+| `secondary` | `#818cf8` | Accent elements, highlights |
+| `background` | `#f5f5f5` | Main application background |
+| `headerBackground` | `#ffffff` | Header bar background |
+| `footerBackground` | `#ffffff` | Footer background |
+| `textPrimary` | `#000000` | Main text color |
+| `textSecondary` | `#6b7280` | Secondary text, labels |
+
+### Example: Full Color Theme Update
+
+```jsx
+import { useBrand } from '@/context/BrandContext';
+
+function ApplyDarkTheme() {
+  const { updateBrandSettings } = useBrand();
+
+  const applyDarkTheme = () => {
+    updateBrandSettings({
+      appName: 'PixelFlow',
+      logoUrl: '/logo-dark.png',
+      logoWidth: 40,
+      logoHeight: 40,
+      colors: {
+        primary: '#8b5cf6',
+        secondary: '#a78bfa',
+        background: '#1f2937',
+        headerBackground: '#111827',
+        footerBackground: '#111827',
+        textPrimary: '#f9fafb',
+        textSecondary: '#9ca3af',
+      },
+      theme: {
+        borderRadius: 12,
+        fontFamily: 'Inter, system-ui, sans-serif',
+      },
+    });
+  };
+
+  return <button onClick={applyDarkTheme}>Apply Dark Theme</button>;
+}
+```
+
+## Theme Configuration
+
+The `theme` object controls visual styling properties:
+
+```js
+theme: {
+  borderRadius: 8,  // Border radius for cards, buttons (pixels)
+  fontFamily: 'Segoe UI, system-ui, sans-serif',
+}
+```
+
+### Applying Theme Styles
+
+```jsx
+import { useBrand } from '@/context/BrandContext';
+
+function StyledCard({ children }) {
+  const { brandSettings } = useBrand();
+
+  return (
+    <div
+      style={{
+        borderRadius: `${brandSettings.theme.borderRadius}px`,
+        fontFamily: brandSettings.theme.fontFamily,
+        backgroundColor: brandSettings.colors.background,
+        color: brandSettings.colors.textPrimary,
+        padding: '20px',
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+```
+
+## Error Handling
+
+The BrandContext includes built-in error handling for localStorage operations:
+
+<Note>
+  If localStorage is unavailable (e.g., in private browsing mode), brand settings will still work for the current session but won't persist across page reloads.
+</Note>
+
+```jsx src/context/BrandContext.jsx:21-26
+try {
+  localStorage.setItem('pixelflow_brand_settings', JSON.stringify(newSettings));
+} catch (error) {
+  logger.error('Error al guardar configuración de marca:', error);
+  // Settings remain in memory for current session
+}
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Use the Hook" icon="react">
+    Always access brand settings via `useBrand()` hook, never directly from localStorage
+  </Card>
+  
+  <Card title="Validate Colors" icon="palette">
+    Ensure color values are valid CSS hex codes before updating settings
+  </Card>
+  
+  <Card title="Test Persistence" icon="floppy-disk">
+    Test that customizations persist across browser sessions and page reloads
+  </Card>
+  
+  <Card title="Provide Defaults" icon="shield">
+    Always spread existing settings when updating to avoid losing properties
+  </Card>
+</CardGroup>
+
+## Complete Example: Brand Configuration Panel
+
+```jsx
+import { useState } from 'react';
+import { useBrand } from '@/context/BrandContext';
+
+function BrandConfigPanel() {
+  const { brandSettings, updateBrandSettings } = useBrand();
+  const [appName, setAppName] = useState(brandSettings.appName);
+  const [primaryColor, setPrimaryColor] = useState(brandSettings.colors.primary);
+
+  const handleSave = () => {
+    updateBrandSettings({
+      ...brandSettings,
+      appName,
+      colors: {
+        ...brandSettings.colors,
+        primary: primaryColor,
+      },
+    });
+  };
+
+  return (
+    <div>
+      <h2>Brand Settings</h2>
+      
+      <label>
+        App Name:
+        <input 
+          type="text" 
+          value={appName}
+          onChange={(e) => setAppName(e.target.value)}
+        />
+      </label>
+
+      <label>
+        Primary Color:
+        <input 
+          type="color" 
+          value={primaryColor}
+          onChange={(e) => setPrimaryColor(e.target.value)}
+        />
+      </label>
+
+      <button onClick={handleSave}>Save Settings</button>
+    </div>
+  );
+}
+```
+
+## Implementation Reference
+
+- **BrandContext**: `src/context/BrandContext.jsx`
+- **Default Config**: `src/config/brandConfig.js`
+- **BrandLogo Component**: `src/components/Common/BrandLogo.jsx`
+- **ColorPicker Component**: `src/components/Common/ColorPicker.jsx`
+- **localStorage Key**: `pixelflow_brand_settings`

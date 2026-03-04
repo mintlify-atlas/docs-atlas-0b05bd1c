@@ -1,0 +1,590 @@
+---
+title: Customization
+description: Customize PixelFlow's branding, colors, themes, and visual identity to match your brand
+---
+
+## Overview
+
+PixelFlow provides comprehensive branding customization options that allow you to tailor the application's appearance to match your company's visual identity. All customizations persist in the browser's localStorage for a seamless user experience.
+
+<Note>
+Customizations are stored client-side using localStorage under the key `pixelflow_brand_settings`. This means settings persist across sessions but are device/browser-specific.
+</Note>
+
+## Brand Configuration File
+
+The default brand settings are defined in `src/config/brandConfig.js`. This file serves as the fallback configuration and starting point for customization.
+
+```javascript src/config/brandConfig.js
+const brandConfig = {
+  // Application name
+  appName: 'PixelFlow',
+
+  // Logo URL (null = use app name)
+  logoUrl: null,
+
+  // Logo dimensions
+  logoWidth: 40,
+  logoHeight: 40,
+
+  // Color palette
+  colors: {
+    primary: '#a855f7',           // Violet - buttons, switches, interactive elements
+    secondary: '#818cf8',         // Light violet - accents
+    background: '#f5f5f5',        // Light gray - app background
+    headerBackground: '#ffffff',  // White - header background
+    footerBackground: '#ffffff',  // White - footer background
+    textPrimary: '#000000',       // Black - main text
+    textSecondary: '#6b7280',     // Gray - secondary text
+  },
+
+  // Theme settings
+  theme: {
+    borderRadius: 8,              // Border radius for cards, buttons (px)
+    fontFamily: 'Segoe UI, system-ui, sans-serif',
+  },
+};
+
+export default brandConfig;
+```
+
+## Brand Context System
+
+PixelFlow uses React Context API to manage brand settings throughout the application. The `BrandContext` provides:
+
+- **Global state management** for brand settings
+- **localStorage persistence** for settings
+- **Real-time updates** across all components
+
+### Using the Brand Context
+
+```javascript Example Component
+import { useBrand } from '@/context/BrandContext';
+
+function MyComponent() {
+  const { brandSettings, updateBrandSettings } = useBrand();
+
+  return (
+    <div style={{ backgroundColor: brandSettings.colors.primary }}>
+      <h1>{brandSettings.appName}</h1>
+    </div>
+  );
+}
+```
+
+### Brand Context Implementation
+
+```javascript src/context/BrandContext.jsx
+import React, { createContext, useState, useContext, useEffect } from 'react';
+import brandConfig from '@/config/brandConfig';
+import logger from '@/lib/logger';
+
+const BrandContext = createContext();
+
+export const BrandProvider = ({ children }) => {
+  const [brandSettings, setBrandSettings] = useState(brandConfig);
+
+  const updateBrandSettings = (newSettings) => {
+    setBrandSettings(newSettings);
+    
+    try {
+      localStorage.setItem('pixelflow_brand_settings', JSON.stringify(newSettings));
+    } catch (error) {
+      logger.error('Error saving brand settings:', error);
+    }
+  };
+
+  // Load saved settings on mount
+  useEffect(() => {
+    try {
+      const savedSettings = localStorage.getItem('pixelflow_brand_settings');
+      if (savedSettings) {
+        setBrandSettings(JSON.parse(savedSettings));
+      }
+    } catch (error) {
+      logger.error('Error loading brand settings:', error);
+    }
+  }, []);
+
+  return (
+    <BrandContext.Provider value={{ brandSettings, updateBrandSettings }}>
+      {children}
+    </BrandContext.Provider>
+  );
+};
+
+export const useBrand = () => {
+  const context = useContext(BrandContext);
+  if (!context) {
+    throw new Error('useBrand must be used within a BrandProvider');
+  }
+  return context;
+};
+```
+
+## Customization Methods
+
+### Method 1: Edit Brand Config File
+
+For permanent, code-level customization:
+
+<Steps>
+  <Step title="Open brandConfig.js">
+    Navigate to `src/config/brandConfig.js` in your code editor
+  </Step>
+  
+  <Step title="Modify settings">
+    Update the values according to your brand:
+    
+    ```javascript
+    const brandConfig = {
+      appName: 'YourCompany',
+      logoUrl: '/your-logo.png',
+      colors: {
+        primary: '#ff6b6b',        // Your brand color
+        secondary: '#4ecdc4',      // Your accent color
+        background: '#f0f0f0',
+        // ... other colors
+      },
+    };
+    ```
+  </Step>
+  
+  <Step title="Add your logo">
+    Place your logo file in the `public/` directory and reference it:
+    
+    ```javascript
+    logoUrl: '/my-company-logo.png',
+    logoWidth: 50,
+    logoHeight: 50,
+    ```
+  </Step>
+  
+  <Step title="Restart development server">
+    ```bash
+    npm run dev
+    ```
+  </Step>
+</Steps>
+
+### Method 2: Use the Configuration Panel
+
+For runtime customization through the UI:
+
+<Steps>
+  <Step title="Open Configuration Panel">
+    Click the "Configurar" (Configure) button in the application header
+  </Step>
+  
+  <Step title="Customize Logo & Name">
+    - Enter your application/company name
+    - Upload your logo (PNG, SVG, or other image formats)
+    - Preview appears in real-time
+  </Step>
+  
+  <Step title="Customize Colors">
+    Use color pickers to adjust:
+    - **Primary color**: Main brand color for buttons and interactive elements
+    - **Secondary color**: Accent color for highlights
+    - **Background color**: Overall app background
+  </Step>
+  
+  <Step title="Save Configuration">
+    Click "Guardar configuración" to persist changes to localStorage
+  </Step>
+</Steps>
+
+<Note>
+UI-based customizations are saved to localStorage and take precedence over the default `brandConfig.js` settings.
+</Note>
+
+## Color Customization
+
+### Primary Color
+
+The primary color is used throughout the application for:
+
+- Button backgrounds
+- Switch toggles and active states
+- Icons and interactive elements
+- Progress indicators
+- Links and hover states
+
+```javascript
+colors: {
+  primary: '#a855f7',  // Default: Violet
+}
+```
+
+<Warning>
+Choose a primary color with sufficient contrast against white backgrounds for accessibility. Aim for a WCAG AA contrast ratio of at least 4.5:1.
+</Warning>
+
+### Secondary Color
+
+Used for accents, highlights, and secondary UI elements:
+
+```javascript
+colors: {
+  secondary: '#818cf8',  // Default: Light violet
+}
+```
+
+### Background Colors
+
+Control the overall color scheme:
+
+```javascript
+colors: {
+  background: '#f5f5f5',           // Main app background
+  headerBackground: '#ffffff',      // Header area
+  footerBackground: '#ffffff',      // Footer area
+}
+```
+
+### Text Colors
+
+```javascript
+colors: {
+  textPrimary: '#000000',    // Headlines, primary content
+  textSecondary: '#6b7280',  // Descriptions, secondary content
+}
+```
+
+## Logo Customization
+
+### Logo Requirements
+
+<CardGroup cols={2}>
+  <Card title="Format" icon="image">
+    - PNG (recommended for transparency)
+    - SVG (best for scalability)
+    - JPG, WEBP (supported)
+  </Card>
+  
+  <Card title="Size" icon="ruler">
+    - Recommended: 40-60px height
+    - Width: Auto or proportional
+    - File size: Under 100KB
+  </Card>
+  
+  <Card title="Background" icon="square">
+    - Transparent background preferred
+    - Works on white/light backgrounds
+    - Consider dark mode if applicable
+  </Card>
+  
+  <Card title="Resolution" icon="sparkles">
+    - 2x resolution for retina displays
+    - Square or horizontal orientation
+    - Clear at small sizes
+  </Card>
+</CardGroup>
+
+### Setting Logo Programmatically
+
+<CodeGroup>
+```javascript Static Logo (public folder)
+const brandConfig = {
+  logoUrl: '/logo.png',  // File in public/ directory
+  logoWidth: 40,
+  logoHeight: 40,
+};
+```
+
+```javascript External Logo URL
+const brandConfig = {
+  logoUrl: 'https://yourcompany.com/logo.png',
+  logoWidth: 50,
+  logoHeight: 50,
+};
+```
+
+```javascript No Logo (text only)
+const brandConfig = {
+  logoUrl: null,  // Will display appName as text
+  appName: 'YourCompany',
+};
+```
+</CodeGroup>
+
+## Theme Settings
+
+### Border Radius
+
+Control the roundedness of UI elements:
+
+```javascript
+theme: {
+  borderRadius: 8,  // 0 = square, 16 = very rounded
+}
+```
+
+<Tabs>
+  <Tab title="Minimal (4px)">
+    Subtle, modern look with slight rounding
+  </Tab>
+  <Tab title="Default (8px)">
+    Balanced, friendly appearance
+  </Tab>
+  <Tab title="Rounded (16px)">
+    Playful, approachable design
+  </Tab>
+  <Tab title="Sharp (0px)">
+    Formal, traditional aesthetic
+  </Tab>
+</Tabs>
+
+### Font Family
+
+Customize the typography:
+
+```javascript
+theme: {
+  fontFamily: 'Segoe UI, system-ui, sans-serif',
+}
+```
+
+<CodeGroup>
+```javascript System Fonts (recommended)
+fontFamily: 'system-ui, -apple-system, sans-serif'
+```
+
+```javascript Custom Web Fonts
+fontFamily: '"Inter", system-ui, sans-serif'
+// Remember to load the font in app/layout.jsx
+```
+
+```javascript Monospace (code-focused)
+fontFamily: '"Fira Code", "Courier New", monospace'
+```
+</CodeGroup>
+
+## BrandConfigPanel Component
+
+The built-in configuration panel (`src/components/Common/BrandConfigPanel.jsx`) provides a user-friendly interface for customization:
+
+### Features
+
+- **Live preview** of logo and branding changes
+- **Color pickers** for all customizable colors
+- **File upload** for logo images
+- **Reset functionality** to restore defaults
+- **Persistent storage** using localStorage
+
+### Using in Your Application
+
+```jsx Example Usage
+import BrandConfigPanel from '@/components/Common/BrandConfigPanel';
+import { useBrand } from '@/context/BrandContext';
+
+function SettingsPage() {
+  const { updateBrandSettings } = useBrand();
+
+  const handleSave = (newConfig) => {
+    updateBrandSettings(newConfig);
+    // Optional: Additional logic after save
+  };
+
+  return (
+    <BrandConfigPanel onSave={handleSave} />
+  );
+}
+```
+
+## Advanced Customization
+
+### Dynamic Theming
+
+Create multiple brand presets:
+
+```javascript src/config/brandPresets.js
+export const brandPresets = {
+  default: {
+    appName: 'PixelFlow',
+    colors: { primary: '#a855f7', /* ... */ },
+  },
+  dark: {
+    appName: 'PixelFlow',
+    colors: { 
+      primary: '#818cf8',
+      background: '#1a1a1a',
+      textPrimary: '#ffffff',
+    },
+  },
+  corporate: {
+    appName: 'Enterprise Image Pro',
+    colors: { primary: '#0066cc', /* ... */ },
+  },
+};
+```
+
+### CSS Custom Properties
+
+For advanced styling, expose brand colors as CSS variables:
+
+```jsx app/layout.jsx
+export default function RootLayout({ children }) {
+  const { brandSettings } = useBrand();
+  
+  const cssVars = {
+    '--color-primary': brandSettings.colors.primary,
+    '--color-secondary': brandSettings.colors.secondary,
+    '--border-radius': `${brandSettings.theme.borderRadius}px`,
+  };
+
+  return (
+    <html lang="es" style={cssVars}>
+      <body>{children}</body>
+    </html>
+  );
+}
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Accessibility">
+    - Ensure color contrast meets WCAG AA standards (4.5:1 for text)
+    - Test with colorblindness simulators
+    - Don't rely solely on color to convey information
+    - Provide alternative text for logos
+  </Accordion>
+  
+  <Accordion title="Performance">
+    - Optimize logo files (compress images, use SVG when possible)
+    - Keep logo file size under 100KB
+    - Use modern image formats (WEBP, AVIF) with fallbacks
+    - Consider lazy loading for large logos
+  </Accordion>
+  
+  <Accordion title="Consistency">
+    - Use the brand context throughout your app
+    - Avoid hardcoding colors outside brandConfig
+    - Document your brand guidelines
+    - Test customizations across different screen sizes
+  </Accordion>
+  
+  <Accordion title="Testing">
+    - Test on multiple browsers and devices
+    - Verify localStorage persistence
+    - Check logo rendering at different sizes
+    - Validate color combinations
+  </Accordion>
+</AccordionGroup>
+
+## Examples
+
+### Example 1: Corporate Blue Theme
+
+```javascript
+const brandConfig = {
+  appName: 'ImagePro Enterprise',
+  logoUrl: '/corporate-logo.svg',
+  logoWidth: 45,
+  logoHeight: 45,
+  colors: {
+    primary: '#0066cc',
+    secondary: '#4d94ff',
+    background: '#f8f9fa',
+    headerBackground: '#ffffff',
+    footerBackground: '#e9ecef',
+    textPrimary: '#212529',
+    textSecondary: '#6c757d',
+  },
+  theme: {
+    borderRadius: 4,
+    fontFamily: 'Arial, sans-serif',
+  },
+};
+```
+
+### Example 2: Modern Green Theme
+
+```javascript
+const brandConfig = {
+  appName: 'EcoPixel',
+  logoUrl: '/eco-logo.png',
+  logoWidth: 50,
+  logoHeight: 50,
+  colors: {
+    primary: '#10b981',
+    secondary: '#34d399',
+    background: '#f0fdf4',
+    headerBackground: '#ffffff',
+    footerBackground: '#dcfce7',
+    textPrimary: '#064e3b',
+    textSecondary: '#059669',
+  },
+  theme: {
+    borderRadius: 12,
+    fontFamily: 'Inter, system-ui, sans-serif',
+  },
+};
+```
+
+### Example 3: Minimalist Dark Theme
+
+```javascript
+const brandConfig = {
+  appName: 'PixelFlow Dark',
+  logoUrl: null,
+  colors: {
+    primary: '#818cf8',
+    secondary: '#a78bfa',
+    background: '#1e1e1e',
+    headerBackground: '#2d2d2d',
+    footerBackground: '#2d2d2d',
+    textPrimary: '#ffffff',
+    textSecondary: '#a0a0a0',
+  },
+  theme: {
+    borderRadius: 0,
+    fontFamily: 'Roboto Mono, monospace',
+  },
+};
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Logo not displaying">
+    - Verify the file exists in the `public/` directory
+    - Check the file path (should start with `/`)
+    - Ensure the image file format is supported
+    - Check browser console for 404 errors
+  </Accordion>
+  
+  <Accordion title="Colors not updating">
+    - Clear localStorage: `localStorage.removeItem('pixelflow_brand_settings')`
+    - Hard refresh the browser (Ctrl/Cmd + Shift + R)
+    - Check that you're using `useBrand()` hook correctly
+    - Verify BrandProvider wraps your app
+  </Accordion>
+  
+  <Accordion title="Settings not persisting">
+    - Ensure localStorage is enabled in browser
+    - Check browser privacy settings
+    - Verify no errors in console when saving
+    - Try a different browser to isolate the issue
+  </Accordion>
+  
+  <Accordion title="UI looks broken after customization">
+    - Reset to defaults using the "Restablecer" button
+    - Check color values are valid hex codes
+    - Ensure borderRadius is a positive number
+    - Verify font family names are correct
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Performance" icon="rocket" href="/advanced/performance">
+    Optimize your customized PixelFlow for production
+  </Card>
+  
+  <Card title="Advanced Features" icon="wand-magic-sparkles" href="/features">
+    Explore image processing capabilities
+  </Card>
+</CardGroup>

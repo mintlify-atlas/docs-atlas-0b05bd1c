@@ -1,0 +1,409 @@
+---
+title: 'Image Processing'
+description: 'Client-side image processing utilities for optimizing, resizing, cropping, and converting image formats'
+icon: 'wand-magic-sparkles'
+---
+
+Image processing utilities for PixelFlow. All operations run entirely in the browser using HTML5 Canvas API and third-party libraries.
+
+## Functions
+
+### optimizeImage
+
+Reduces image file size using browser-image-compression library.
+
+```javascript
+import { optimizeImage } from '@/lib/imageProcessing';
+
+const optimizedFile = await optimizeImage(file, {
+  maxSizeMB: 1,
+  maxWidthOrHeight: 1920,
+  useWebWorker: true
+});
+```
+
+<ParamField path="file" type="File" required>
+  Image file to optimize
+</ParamField>
+
+<ParamField path="options" type="Object">
+  Compression options
+  
+  <Expandable title="properties">
+    <ParamField path="maxSizeMB" type="number" default="1">
+      Maximum file size in megabytes (default: `OPTIMIZE_MAX_SIZE_MB`)
+    </ParamField>
+    
+    <ParamField path="maxWidthOrHeight" type="number" default="1920">
+      Maximum dimension in pixels (default: `OPTIMIZE_MAX_DIMENSION`)
+    </ParamField>
+    
+    <ParamField path="useWebWorker" type="boolean" default="true">
+      Use web worker for background processing
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ResponseField name="return" type="Promise<File>">
+  Optimized image file, or original file if optimization fails
+</ResponseField>
+
+#### Implementation Notes
+
+- Uses `browser-image-compression` library
+- Returns original file on error (never throws)
+- Default values from `constants.js:OPTIMIZE_MAX_SIZE_MB` (1 MB) and `OPTIMIZE_MAX_DIMENSION` (1920px)
+- Web worker prevents UI blocking during compression
+
+#### Usage Example
+
+From `useImageProcessor.js:119-127`:
+
+```javascript
+if (processingSettings.optimize) {
+  processedFile = await optimizeImage(processedFile, {
+    maxSizeMB: OPTIMIZE_MAX_SIZE_MB,
+    maxWidthOrHeight: OPTIMIZE_MAX_DIMENSION,
+    useWebWorker: true,
+  });
+  fileChanged = true;
+  logger.log('Imagen optimizada');
+}
+```
+
+---
+
+### resizeImage
+
+Resizes an image to specified dimensions using react-image-file-resizer.
+
+```javascript
+import { resizeImage } from '@/lib/imageProcessing';
+
+const blob = await resizeImage(file, 800, 600, true);
+```
+
+<ParamField path="file" type="File" required>
+  Image file to resize
+</ParamField>
+
+<ParamField path="width" type="number" required>
+  Target width in pixels
+</ParamField>
+
+<ParamField path="height" type="number" required>
+  Target height in pixels
+</ParamField>
+
+<ParamField path="maintainAspectRatio" type="boolean" default="true">
+  Preserve original aspect ratio. When true, uses mode 3 for PNG (crop/pad) or mode 1 for other formats (stretch)
+</ParamField>
+
+<ResponseField name="return" type="Promise<Blob>">
+  Resized image as Blob
+</ResponseField>
+
+#### Implementation Notes
+
+- Uses `react-image-file-resizer` library
+- Quality is always `RESIZE_QUALITY` (100)
+- No rotation applied (rotation parameter = 0)
+- Output format matches input format
+- Aspect ratio mode:
+  - PNG with aspect ratio: mode 3 (smart crop/pad)
+  - Other formats with aspect ratio: mode 1 (stretch to fit)
+  - No aspect ratio: mode 0 (ignore)
+
+#### Usage Example
+
+From `useImageProcessor.js:131-136`:
+
+```javascript
+if (processingSettings.resize.enabled) {
+  processedFile = await resizeImage(
+    processedFile,
+    resizeDimensions.width,
+    resizeDimensions.height,
+    processingSettings.resize.maintainAspectRatio
+  );
+  fileChanged = true;
+  logger.log(`Imagen redimensionada a ${resizeDimensions.width}x${resizeDimensions.height}`);
+}
+```
+
+---
+
+### convertImageFormat
+
+Converts an image to a different format (JPG, PNG, WEBP, GIF).
+
+```javascript
+import { convertImageFormat } from '@/lib/imageProcessing';
+
+const convertedFile = await convertImageFormat(file, 'webp');
+```
+
+<ParamField path="file" type="File" required>
+  Image file to convert
+</ParamField>
+
+<ParamField path="format" type="string" required>
+  Target format: `'jpg'`, `'jpeg'`, `'png'`, `'webp'`, `'gif'`, or `'original'`
+</ParamField>
+
+<ResponseField name="return" type="Promise<File>">
+  Converted image file with updated MIME type and extension, or original file if conversion fails or format is `'original'`
+</ResponseField>
+
+#### Implementation Notes
+
+- Uses HTML5 Canvas API (`canvas.toBlob()`)
+- Quality set to `FORMAT_CONVERSION_QUALITY` (0.92)
+- JPEG conversion adds white background (removes transparency)
+- Returns original file if:
+  - Format is `'original'`
+  - Conversion fails
+- New filename: `image_<timestamp>.<extension>`
+- Fallback for browsers without `toBlob` support using `toDataURL`
+
+#### Format Mapping
+
+| Input Format | MIME Type | Extension |
+|-------------|-----------|----------|
+| `jpg` / `jpeg` | `image/jpeg` | `.jpg` |
+| `png` | `image/png` | `.png` |
+| `webp` | `image/webp` | `.webp` |
+| `gif` | `image/gif` | `.gif` |
+| `original` | (unchanged) | (unchanged) |
+
+#### Usage Example
+
+From `useImageProcessor.js:205-217`:
+
+```javascript
+if (processingSettings.format !== 'original') {
+  logger.log(`Aplicando conversión de formato a: ${processingSettings.format}`);
+  try {
+    const prevSize = processedFile.size;
+    processedFile = await convertImageFormat(
+      processedFile,
+      processingSettings.format
+    );
+    logger.log(
+      `Conversión completada. Tamaño anterior: ${prevSize}, Nuevo tamaño: ${processedFile.size}`
+    );
+    fileChanged = true;
+  } catch (error) {
+    logger.error(`Error en la conversión de formato a ${processingSettings.format}:`, error);
+  }
+}
+```
+
+---
+
+### cropImage
+
+Crops an image to specified dimensions from a given position.
+
+```javascript
+import { cropImage } from '@/lib/imageProcessing';
+
+const blob = await cropImage(file, 1000, 1000, 'center');
+```
+
+<ParamField path="file" type="File" required>
+  Image file to crop
+</ParamField>
+
+<ParamField path="width" type="number" required>
+  Crop width in pixels
+</ParamField>
+
+<ParamField path="height" type="number" required>
+  Crop height in pixels
+</ParamField>
+
+<ParamField path="position" type="string" default="center">
+  Crop anchor position. Supported values:
+  - `'center'` - Center of image
+  - `'top-left'` - Top left corner
+  - `'top'` - Top center
+  - `'top-right'` - Top right corner
+  - `'left'` - Center left
+  - `'right'` - Center right
+  - `'bottom-left'` - Bottom left corner
+  - `'bottom'` - Bottom center
+  - `'bottom-right'` - Bottom right corner
+</ParamField>
+
+<ResponseField name="return" type="Promise<Blob>">
+  Cropped image as Blob
+</ResponseField>
+
+#### Implementation Notes
+
+- Uses HTML5 Canvas API with FileReader
+- White background (`#FFFFFF`) fills canvas before drawing
+- If image is smaller than crop dimensions:
+  - Centers the image
+  - Fills remaining space with white
+- Preserves original file format
+- Position calculation:
+  - Horizontal: `left` (0), `right` (width - cropWidth), else center
+  - Vertical: `top` (0), `bottom` (height - cropHeight), else center
+
+#### Usage Example
+
+From `useImageProcessor.js:194-202`:
+
+```javascript
+if (processingSettings.crop.enabled) {
+  const cropWidth = processingSettings.crop.width;
+  const cropHeight = processingSettings.crop.height;
+  
+  logger.log(
+    `Aplicando recorte: ${cropWidth}x${cropHeight} desde posición ${processingSettings.crop.position}`
+  );
+  
+  processedFile = await cropImage(
+    processedFile,
+    cropWidth,
+    cropHeight,
+    processingSettings.crop.position || 'center'
+  );
+  fileChanged = true;
+  logger.log(`Imagen recortada completada: ${cropWidth}x${cropHeight}`);
+}
+```
+
+---
+
+### calculatePercentageDimensions
+
+Calculates pixel dimensions based on a percentage of the original image size.
+
+```javascript
+import { calculatePercentageDimensions } from '@/lib/imageProcessing';
+
+const dimensions = await calculatePercentageDimensions(file, 50, true);
+// Returns: { width: 400, height: 300, originalWidth: 800, originalHeight: 600 }
+```
+
+<ParamField path="file" type="File" required>
+  Image file to measure
+</ParamField>
+
+<ParamField path="widthPercent" type="number" required>
+  Target width as percentage of original (1-100)
+</ParamField>
+
+<ParamField path="maintainAspectRatio" type="boolean" default="true">
+  When true, calculates height from width to preserve aspect ratio. When false, applies same percentage to both dimensions.
+</ParamField>
+
+<ResponseField name="return" type="Promise<Object>">
+  Dimensions object with pixel values
+  
+  <Expandable title="properties">
+    <ResponseField name="width" type="number">
+      Calculated width in pixels
+    </ResponseField>
+    
+    <ResponseField name="height" type="number">
+      Calculated height in pixels
+    </ResponseField>
+    
+    <ResponseField name="originalWidth" type="number">
+      Original image width in pixels
+    </ResponseField>
+    
+    <ResponseField name="originalHeight" type="number">
+      Original image height in pixels
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+#### Implementation Notes
+
+- Uses FileReader to load image and get dimensions
+- Calculation when `maintainAspectRatio = true`:
+  - `newWidth = originalWidth * (widthPercent / 100)`
+  - `newHeight = newWidth / aspectRatio`
+- Calculation when `maintainAspectRatio = false`:
+  - `newWidth = originalWidth * (widthPercent / 100)`
+  - `newHeight = originalHeight * (widthPercent / 100)`
+- Returns default dimensions (`DEFAULT_RESIZE_WIDTH` × `DEFAULT_RESIZE_HEIGHT`) on error
+
+#### Usage Example
+
+From `useImageProcessor.js:96-114`:
+
+```javascript
+// If using percentage for resize, calculate pixel dimensions
+if (processingSettings.resize.enabled && processingSettings.resize.unit === '%') {
+  try {
+    const percentWidth = processingSettings.resize.width;
+    const dimensions = await calculatePercentageDimensions(
+      processedFile,
+      percentWidth,
+      processingSettings.resize.maintainAspectRatio
+    );
+
+    if (dimensions.width && dimensions.height) {
+      resizeDimensions = dimensions;
+      logger.log(
+        `Redimensionando al ${percentWidth}% - Ancho: ${dimensions.width}px, Alto: ${dimensions.height}px`
+      );
+    }
+  } catch (error) {
+    logger.error('Error al calcular dimensiones en porcentaje:', error);
+  }
+}
+```
+
+---
+
+## Processing Pipeline
+
+PixelFlow applies transformations in this specific order:
+
+1. **Optimization** (`optimizeImage`) - Reduces file size
+2. **Resize** (`resizeImage` or `calculatePercentageDimensions` + `resizeImage`) - Changes dimensions
+3. **Crop** (`cropImage`) - Extracts region from resized image
+4. **Format Conversion** (`convertImageFormat`) - Changes file format
+
+This order ensures optimal results and predictable behavior.
+
+## Constants Reference
+
+All default values are defined in `@/lib/constants.js`:
+
+```javascript
+// Optimization
+export const OPTIMIZE_MAX_SIZE_MB = 1;
+export const OPTIMIZE_MAX_DIMENSION = 1920;
+
+// Resize defaults
+export const DEFAULT_RESIZE_WIDTH = 800;
+export const DEFAULT_RESIZE_HEIGHT = 600;
+
+// Crop defaults
+export const DEFAULT_CROP_WIDTH = 1000;
+export const DEFAULT_CROP_HEIGHT = 1000;
+
+// Quality settings
+export const FORMAT_CONVERSION_QUALITY = 0.92; // 0-1 scale
+export const RESIZE_QUALITY = 100; // 0-100 scale
+```
+
+## Error Handling
+
+All functions are designed to be fault-tolerant:
+
+- `optimizeImage` - Returns original file on failure
+- `convertImageFormat` - Returns original file on failure or if format is `'original'`
+- `cropImage` - Rejects promise with error
+- `resizeImage` - Handles errors via promise rejection
+- `calculatePercentageDimensions` - Returns default dimensions on error
+
+Always wrap calls in try/catch blocks and provide fallback behavior.

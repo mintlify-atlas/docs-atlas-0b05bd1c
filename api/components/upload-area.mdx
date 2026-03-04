@@ -1,0 +1,228 @@
+---
+title: 'UploadArea'
+description: 'Drag-and-drop image upload component with file validation and large file warnings'
+icon: 'upload'
+---
+
+## Overview
+
+The `UploadArea` component provides a user-friendly drag-and-drop interface for uploading images. It supports multiple file formats (JPG, PNG, GIF, WEBP), validates file sizes, and displays warnings for large files to ensure optimal performance.
+
+## Features
+
+- Drag-and-drop file upload interface
+- Click to select files
+- Automatic file validation (format and size)
+- Large file warnings (>30MB)
+- Supports up to 60MB per file
+- Configurable maximum file count
+- Brand-aware theming using BrandContext
+- Loading state support
+
+## Props
+
+<ParamField path="onUpload" type="function" required>
+  Callback function invoked when files are successfully uploaded. Receives an array of File objects.
+  
+  **Signature:** `(files: File[]) => void`
+</ParamField>
+
+<ParamField path="loading" type="boolean" default="false">
+  When `true`, disables the upload area to prevent new uploads during processing.
+</ParamField>
+
+<ParamField path="maxCount" type="number" default="50">
+  Maximum number of files that can be uploaded at once.
+</ParamField>
+
+## Usage
+
+### Basic usage
+
+```jsx
+import UploadArea from '@/components/ImageUploader/UploadArea';
+
+function MyComponent() {
+  const handleUpload = (files) => {
+    console.log('Uploaded files:', files);
+    // Process files here
+  };
+
+  return <UploadArea onUpload={handleUpload} />;
+}
+```
+
+### With loading state
+
+```jsx
+import UploadArea from '@/components/ImageUploader/UploadArea';
+
+function MyComponent() {
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const handleUpload = async (files) => {
+    setIsProcessing(true);
+    // Process files
+    await processImages(files);
+    setIsProcessing(false);
+  };
+
+  return <UploadArea onUpload={handleUpload} loading={isProcessing} />;
+}
+```
+
+### Custom file limit
+
+```jsx
+import UploadArea from '@/components/ImageUploader/UploadArea';
+
+function MyComponent() {
+  const handleUpload = (files) => {
+    console.log('Uploaded files:', files);
+  };
+
+  return (
+    <UploadArea 
+      onUpload={handleUpload} 
+      maxCount={10} 
+    />
+  );
+}
+```
+
+### Real-world example from App.jsx
+
+```jsx
+import { useState } from 'react';
+import { Card } from 'antd';
+import UploadArea from '@/components/ImageUploader/UploadArea';
+import useImageUpload from '@/hooks/useImageUpload';
+
+function App() {
+  const { uploadedImages, loading, handleUpload } = useImageUpload();
+  const hasImages = uploadedImages.length > 0;
+
+  return (
+    <Card style={{ borderRadius: '8px', marginBottom: '16px' }}>
+      <UploadArea onUpload={handleUpload} loading={loading} />
+    </Card>
+  );
+}
+```
+
+## File validation
+
+The component performs automatic validation:
+
+### Supported formats
+
+- JPG/JPEG
+- PNG
+- GIF
+- WEBP
+
+### File size limits
+
+- **Maximum:** 60MB per file
+- **Warning threshold:** 30MB (displays alert for better performance)
+
+### Validation behavior
+
+<Note>
+  Files that fail validation are automatically rejected and not passed to the `onUpload` callback.
+</Note>
+
+## Large file warnings
+
+When files larger than 30MB are uploaded, the component displays an alert:
+
+```
+Archivos grandes detectados
+Algunos archivos son muy grandes (más de 30MB). 
+El procesamiento puede ser más lento. 
+Se han creado vistas previas optimizadas para mejorar el rendimiento.
+```
+
+<Tip>
+  The warning can be dismissed by clicking the close button. This helps users understand why processing might take longer.
+</Tip>
+
+## Theming
+
+The component integrates with the `BrandContext` to apply custom branding:
+
+- Primary color for icons and text highlights
+- Respects brand settings for visual consistency
+
+```jsx
+// Component uses brandSettings from context
+const { brandSettings } = useBrand();
+
+// Applied to:
+// - Upload icon color
+// - Title text color
+// - Action text color
+```
+
+## Implementation details
+
+### Source location
+
+`src/components/ImageUploader/UploadArea.jsx:18`
+
+### Dependencies
+
+- `antd` - Upload.Dragger, Typography, Alert components
+- `@/lib/fileValidation` - File validation utilities
+- `@/context/BrandContext` - Brand theming
+
+### Key features
+
+<AccordionGroup>
+  <Accordion title="Duplicate detection">
+    The component uses a Map-based approach to detect and prevent duplicate files based on filename.
+    
+    ```jsx
+    const fileMap = new Map();
+    info.fileList.forEach((fileItem) => {
+      if (fileItem.originFileObj && !fileMap.has(fileItem.name)) {
+        fileMap.set(fileItem.name, fileItem.originFileObj);
+        newFiles.push(fileItem.originFileObj);
+      }
+    });
+    ```
+  </Accordion>
+  
+  <Accordion title="Custom upload handler">
+    Uses a custom request handler that simulates immediate success without server upload, as PixelFlow processes files entirely client-side.
+    
+    ```jsx
+    const customRequest = ({ file: _file, onSuccess }) => {
+      setTimeout(() => {
+        onSuccess('ok', null);
+      }, 0);
+    };
+    ```
+  </Accordion>
+  
+  <Accordion title="Performance optimization">
+    Files over 30MB trigger a warning and are processed with low-resolution previews to maintain browser performance.
+  </Accordion>
+</AccordionGroup>
+
+## Related components
+
+<Columns cols={2}>
+  <Card title="UploadedImagesList" icon="images" href="/api/hooks/use-image-upload">
+    Displays the list of uploaded images with remove functionality.
+  </Card>
+  
+  <Card title="ProcessedImagesList" icon="image" href="/api/components/processed-images-list">
+    Shows processed images with optimization statistics.
+  </Card>
+</Columns>
+
+## See also
+
+- [useImageUpload hook](/api/hooks/use-image-upload) - Hook for managing upload state
+- [File validation utilities](/api/utilities/file-validation) - Validation helper functions

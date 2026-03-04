@@ -1,0 +1,426 @@
+---
+title: 'Renaming Images'
+description: 'Batch rename your processed images with sequential numbering, text addition, or find-and-replace patterns'
+icon: 'pen-to-square'
+---
+
+## Overview
+
+PixelFlow provides powerful batch renaming tools that automatically rename your processed images based on customizable patterns. Renaming happens reactively as you adjust settings, giving you instant feedback.
+
+<Note>
+  Renaming is applied **after** image processing and updates automatically whenever you change rename settings or process new images.
+  
+  Reference: `src/hooks/useImageRename.js:34-137`
+</Note>
+
+## Renaming Modes
+
+PixelFlow offers three distinct renaming modes:
+
+<CardGroup cols={3}>
+  <Card title="Sequential" icon="list-ol">
+    Generate numbered sequences like `IMG_001`, `IMG_002`, `IMG_003`
+  </Card>
+  
+  <Card title="Add Text" icon="plus">
+    Append or prepend custom text to existing filenames
+  </Card>
+  
+  <Card title="Replace Text" icon="arrow-right-arrow-left">
+    Find and replace text patterns across all filenames
+  </Card>
+</CardGroup>
+
+## Text Cleaning Option
+
+### Automatic Filename Sanitization
+
+Enable the "Clean Text" option to automatically sanitize filenames:
+
+<Accordion title="What Text Cleaning Does">
+  When enabled, the cleaning function:
+  
+  - **Removes special characters** - Only keeps letters, numbers, dots, dashes, and underscores
+  - **Replaces spaces** - Converts spaces to underscores
+  - **Converts to lowercase** - Ensures consistent filename casing
+  
+  **Example transformation:**
+  ```
+  Input:  "My Vacation Photo #1 (2024).jpg"
+  Output: "my_vacation_photo_1_2024.jpg"
+  ```
+  
+  Reference: `src/hooks/useImageRename.js:43-51`
+</Accordion>
+
+<Warning>
+  Text cleaning applies to **all modes** and is executed before the renaming pattern is applied.
+</Warning>
+
+## Sequential Renaming
+
+Generate numbered sequences with customizable prefixes and padding.
+
+### Configuration Options
+
+<Steps>
+  <Step title="Set Prefix">
+    Enter a prefix that will appear before each number.
+    
+    **Default:** `IMG_`
+    
+    **Examples:**
+    - `photo_` → `photo_001`, `photo_002`
+    - `banner-` → `banner-001`, `banner-002`
+    - `` (empty) → `001`, `002`
+  </Step>
+  
+  <Step title="Choose Start Number">
+    Specify the first number in your sequence.
+    
+    **Default:** `1`
+    
+    **Range:** 0 to unlimited
+    
+    **Examples:**
+    - Start at `1` → `001`, `002`, `003`
+    - Start at `100` → `100`, `101`, `102`
+    - Start at `0` → `000`, `001`, `002`
+  </Step>
+  
+  <Step title="Set Digit Padding">
+    Define how many digits to use (with leading zeros).
+    
+    **Default:** `3` digits
+    
+    **Range:** 1 to 10 digits
+    
+    **Examples:**
+    - 3 digits → `001`, `012`, `123`
+    - 4 digits → `0001`, `0012`, `0123`
+    - 2 digits → `01`, `12`, `99`
+  </Step>
+</Steps>
+
+### Code Implementation
+
+```javascript
+// Sequential renaming logic from src/hooks/useImageRename.js:54-59
+const renameSequential = (index) => {
+  const { prefix, startNumber, digits } = renameSettings.sequential;
+  const number = startNumber + index;
+  const paddedNumber = number.toString().padStart(digits, '0');
+  return `${prefix}${paddedNumber}`;
+};
+```
+
+### Example Configurations
+
+| Prefix | Start | Digits | Result |
+|--------|-------|--------|--------|
+| `IMG_` | 1 | 3 | `IMG_001.jpg`, `IMG_002.jpg` |
+| `product-` | 100 | 4 | `product-0100.jpg`, `product-0101.jpg` |
+| `` | 0 | 2 | `00.jpg`, `01.jpg` |
+| `banner_` | 10 | 3 | `banner_010.jpg`, `banner_011.jpg` |
+
+## Add Text Mode
+
+Append or prepend custom text to existing filenames.
+
+### Position Options
+
+<Tabs>
+  <Tab title="Prefix (Beginning)">
+    Adds text **before** the existing filename.
+    
+    **Example:**
+    - Original: `photo.jpg`
+    - Text: `summer_`
+    - Result: `summer_photo.jpg`
+    
+    Reference: `src/hooks/useImageRename.js:62-67`
+  </Tab>
+  
+  <Tab title="Suffix (End)">
+    Adds text **after** the existing filename (before extension).
+    
+    **Example:**
+    - Original: `photo.jpg`
+    - Text: `_final`
+    - Result: `photo_final.jpg`
+    
+    Reference: `src/hooks/useImageRename.js:62-67`
+  </Tab>
+</Tabs>
+
+### Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Project Labeling" icon="tag">
+    Add project names: `client-project_` → `client-project_image1.jpg`
+  </Card>
+  
+  <Card title="Version Marking" icon="code-branch">
+    Append versions: `_v2` → `design_v2.jpg`
+  </Card>
+  
+  <Card title="Date Stamping" icon="calendar">
+    Add dates: `2024-03-` → `2024-03-photo.jpg`
+  </Card>
+  
+  <Card title="Status Indicators" icon="circle-check">
+    Mark completion: `_approved` → `banner_approved.jpg`
+  </Card>
+</CardGroup>
+
+<Info>
+  If no text is entered, the filename remains unchanged.
+</Info>
+
+## Replace Text Mode
+
+Find and replace text patterns across all filenames using regular expressions.
+
+### How It Works
+
+<Steps>
+  <Step title="Enter Search Pattern">
+    Specify the text or pattern to find.
+    
+    Supports **regular expressions** for advanced matching.
+  </Step>
+  
+  <Step title="Enter Replacement Text">
+    Specify what to replace the found text with.
+    
+    Leave empty to remove the matched text entirely.
+  </Step>
+  
+  <Step title="Apply Globally">
+    Replacements are applied to **all occurrences** in each filename.
+    
+    Reference: `src/hooks/useImageRename.js:70-75`
+  </Step>
+</Steps>
+
+### Example Patterns
+
+| Search | Replace | Original | Result |
+|--------|---------|----------|--------|
+| `IMG` | `photo` | `IMG_001.jpg` | `photo_001.jpg` |
+| `_old` | `_new` | `design_old.jpg` | `design_new.jpg` |
+| `-` | `_` | `my-photo.jpg` | `my_photo.jpg` |
+| `[0-9]+` | `###` | `file123.jpg` | `file###.jpg` |
+| `test` | `` | `test_image.jpg` | `_image.jpg` |
+
+### Regular Expression Support
+
+<Accordion title="Using Regex Patterns">
+  The replace function supports JavaScript regular expressions:
+  
+  ```javascript
+  // From src/hooks/useImageRename.js:74
+  return name.replace(new RegExp(search, 'g'), replace);
+  ```
+  
+  **Common regex patterns:**
+  - `[0-9]+` - Match any number
+  - `\s+` - Match whitespace
+  - `[a-z]+` - Match lowercase letters
+  - `^text` - Match "text" at start
+  - `text$` - Match "text" at end
+  
+  **Examples:**
+  - Search: `\s+`, Replace: `_` → Replaces all spaces with underscores
+  - Search: `[0-9]{3}`, Replace: `###` → Replaces 3-digit numbers with ###
+  - Search: `^old_`, Replace: `new_` → Replaces "old_" only at filename start
+</Accordion>
+
+<Warning>
+  Invalid regular expressions will be treated as literal strings. Test your patterns with a small batch first.
+</Warning>
+
+## File Extension Handling
+
+### Automatic Extension Detection
+
+PixelFlow intelligently preserves or updates file extensions based on processing:
+
+<Accordion title="How Extensions Are Determined">
+  The system follows this priority order:
+  
+  1. **If image was processed** - Use the MIME type from the processed file
+     - `image/jpeg` or `image/jpg` → `.jpg`
+     - `image/png` → `.png`
+     - `image/webp` → `.webp`
+     - `image/gif` → `.gif`
+  
+  2. **If no processing occurred** - Use the original file extension
+  
+  3. **If MIME type is unknown** - Extract extension from filename
+  
+  Reference: `src/hooks/useImageRename.js:80-100`
+</Accordion>
+
+<Note>
+  Extensions are **always preserved** and appended correctly, even if your rename pattern doesn't include them.
+</Note>
+
+## Rename Settings Object
+
+### Default Configuration
+
+```javascript
+// From src/hooks/useImageRename.js:15-31
+renameSettings = {
+  cleanText: true,                    // Enable filename sanitization
+  mode: 'sequential',                 // Current rename mode
+  
+  sequential: {
+    prefix: 'IMG_',                   // Text before number
+    startNumber: 1,                   // First number
+    digits: 3,                        // Zero-padding length
+  },
+  
+  addText: {
+    position: 'prefix',               // 'prefix' or 'suffix'
+    text: '',                         // Text to add
+  },
+  
+  replaceText: {
+    search: '',                       // Pattern to find
+    replace: '',                      // Replacement text
+  },
+}
+```
+
+## UI Components
+
+### Rename Panel
+
+The rename panel (`src/components/RenameTools/RenamePanel.jsx`) provides:
+
+<CardGroup cols={2}>
+  <Card title="Clean Text Toggle" icon="toggle-on">
+    Switch to enable/disable automatic filename sanitization
+  </Card>
+  
+  <Card title="Mode Selection" icon="circle-dot">
+    Radio buttons to choose between Sequential, Add Text, and Replace Text modes
+  </Card>
+  
+  <Card title="Mode-Specific Settings" icon="sliders">
+    Dynamic form inputs that change based on selected mode
+  </Card>
+  
+  <Card title="Disabled State" icon="ban">
+    Panel disables when no images are loaded or being processed
+  </Card>
+</CardGroup>
+
+## Reactive Updates
+
+### How Renaming Works
+
+<Steps>
+  <Step title="Processing Completes">
+    Images are processed with optimization, resize, crop, and format conversion.
+  </Step>
+  
+  <Step title="Rename Triggered">
+    The `useEffect` hook in `useImageRename` detects new processed images.
+    
+    Reference: `src/hooks/useImageRename.js:34`
+  </Step>
+  
+  <Step title="Apply Settings">
+    Current rename settings are applied to all processed images:
+    1. Clean text (if enabled)
+    2. Apply rename mode (sequential/add/replace)
+    3. Append correct file extension
+  </Step>
+  
+  <Step title="Update State">
+    Renamed images are stored with new filenames in the `renamedImages` state.
+  </Step>
+  
+  <Step title="Display Results">
+    UI updates automatically to show new filenames in the preview list.
+  </Step>
+</Steps>
+
+<Info>
+  Changes to rename settings trigger immediate re-processing of all images, giving you instant feedback.
+</Info>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Use Sequential for Fresh Start" icon="arrow-rotate-right">
+    When you want completely new names, sequential mode provides the cleanest result.
+  </Card>
+  
+  <Card title="Enable Clean Text" icon="broom">
+    Keep this on for web-safe filenames without special characters or spaces.
+  </Card>
+  
+  <Card title="Preview Before Download" icon="eye">
+    Check the renamed filenames in the processed images list before downloading.
+  </Card>
+  
+  <Card title="Plan Your Pattern" icon="list-check">
+    Think about file organization and sorting when choosing prefixes and numbering.
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Why aren't my files being renamed?">
+    **Possible causes:**
+    - Images haven't been processed yet (renaming only applies to processed images)
+    - Rename settings are empty (e.g., no text in Add Text mode)
+    - Original mode is selected (no renaming pattern configured)
+    
+    **Solution:** Process your images first, then select a rename mode and configure it.
+  </Accordion>
+  
+  <Accordion title="Numbers aren't padded correctly">
+    **Cause:** The "digits" setting determines padding length.
+    
+    **Solution:** If you have 100+ images, increase digits to 3 or 4 to ensure proper sorting:
+    - 2 digits → Max `99`
+    - 3 digits → Max `999`
+    - 4 digits → Max `9999`
+  </Accordion>
+  
+  <Accordion title="Replace Text isn't matching">
+    **Cause:** Search pattern might be case-sensitive or using regex syntax.
+    
+    **Solution:** 
+    - Check spelling and capitalization
+    - Escape special regex characters if using them literally: `\`, `.`, `*`, `+`, `?`, `^`, `$`, `[`, `]`, `(`, `)`, `{`, `}`, `|`
+    - Test with simple text first
+  </Accordion>
+  
+  <Accordion title="Clean Text removing too much">
+    **Cause:** Text cleaning removes all special characters to create web-safe filenames.
+    
+    **What's removed:** `!`, `@`, `#`, `$`, `%`, `^`, `&`, `*`, `(`, `)`, `=`, `+`, etc.
+    
+    **Solution:** Disable Clean Text if you need to preserve certain characters, but be aware this may cause issues on some systems.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Download Your Images" icon="download" href="/file-management/downloading">
+    Export your renamed and processed images as a ZIP file or individually
+  </Card>
+  
+  <Card title="Image Processing" icon="wand-magic-sparkles" href="/processing/batch-operations">
+    Learn about optimization, resizing, cropping, and format conversion
+  </Card>
+</CardGroup>

@@ -1,97 +1,245 @@
----
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
----
+<div className="relative overflow-hidden">
+  {/* Hero Section */}
+  <div className="relative bg-gradient-to-br from-[#a855f7] via-[#9333ea] to-[#7e22ce] dark:from-[#7c3aed] dark:via-[#6d28d9] dark:to-[#5b21b6] py-20">
+    <div className="absolute inset-0 bg-black/20 dark:bg-black/30"></div>
+    <div className="relative max-w-7xl mx-auto px-6 lg:px-8">
+      <div className="grid lg:grid-cols-12 gap-12 items-center">
+        <div className="lg:col-span-7">
+          <h1 className="text-5xl lg:text-6xl font-bold text-white mb-6">
+            Transform Your Images with PixelFlow
+          </h1>
+          <p className="text-xl text-white/90 max-w-2xl mb-8">
+            A powerful client-side web application for batch image processing. Optimize, resize, crop, and convert images — all in your browser, with no server required.
+          </p>
+          <div className="flex flex-wrap gap-4">
+            <a 
+              href="/quickstart" 
+              className="inline-flex items-center px-6 py-3 bg-white text-[#a855f7] rounded-lg font-semibold hover:bg-gray-100 transition-colors"
+            >
+              Get Started
+            </a>
+            <a 
+              href="/features" 
+              className="inline-flex items-center px-6 py-3 border-2 border-white/30 bg-white/10 text-white rounded-lg font-semibold hover:bg-white/20 transition-colors backdrop-blur-sm"
+            >
+              Explore Features
+            </a>
+          </div>
+        </div>
+        <div className="lg:col-span-5 hidden lg:block">
+          <div className="relative">
+            <div className="absolute inset-0 bg-gradient-to-tr from-[#818cf8]/20 to-transparent rounded-2xl blur-3xl"></div>
+            <div className="relative bg-white/10 backdrop-blur-md rounded-2xl p-8 border border-white/20">
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-white font-medium">Batch Processing</div>
+                    <div className="text-white/70 text-sm">Process multiple images at once</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-white font-medium">Lightning Fast</div>
+                    <div className="text-white/70 text-sm">Client-side processing, no uploads</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-white font-medium">Private & Secure</div>
+                    <div className="text-white/70 text-sm">Your images never leave your device</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
-## Setting up
+  {/* Quick Start Section */}
+  <div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+    <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-3">
+      Get started in minutes
+    </h2>
+    <p className="text-lg text-gray-600 dark:text-gray-400 mb-8">
+      Follow these simple steps to start processing images with PixelFlow
+    </p>
+    
+    <Steps>
+      <Step title="Install the dependencies">
+        Clone the repository and install the required packages using your preferred package manager.
+        
+        ```bash
+        git clone https://github.com/jios325/pixelflow.git
+        cd pixelflow
+        npm install
+        ```
+      </Step>
+      
+      <Step title="Start the development server">
+        Run the development server to launch PixelFlow in your browser.
+        
+        ```bash
+        npm run dev
+        ```
+        
+        The application will be available at `http://localhost:3000`.
+      </Step>
+      
+      <Step title="Upload and process images">
+        Drag and drop images into the upload area, configure your processing settings (optimization, format, resize, crop), and click process to transform your images instantly.
+        
+        <Note>
+          All processing happens in your browser — your images are never uploaded to a server, ensuring complete privacy and security.
+        </Note>
+      </Step>
+    </Steps>
+  </div>
 
-Get your documentation site up and running in minutes.
+  {/* Features Grid */}
+  <div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+    <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-3">
+      Powerful image processing features
+    </h2>
+    <p className="text-lg text-gray-600 dark:text-gray-400 mb-8">
+      Everything you need to optimize and transform your images
+    </p>
+    
+    <CardGroup cols={2}>
+      <Card
+        title="Image optimization"
+        icon="gauge-high"
+        href="/processing/optimization"
+      >
+        Reduce file sizes while maintaining quality using advanced compression algorithms
+      </Card>
+      <Card
+        title="Format conversion"
+        icon="arrows-rotate"
+        href="/processing/format-conversion"
+      >
+        Convert between JPG, PNG, WEBP, and GIF formats with ease
+      </Card>
+      <Card
+        title="Smart resizing"
+        icon="expand"
+        href="/processing/resizing"
+      >
+        Resize images by pixels or percentage while maintaining aspect ratios
+      </Card>
+      <Card
+        title="Intelligent cropping"
+        icon="crop-simple"
+        href="/processing/cropping"
+      >
+        Crop images to specific dimensions with position control
+      </Card>
+      <Card
+        title="Batch renaming"
+        icon="file-signature"
+        href="/file-management/renaming"
+      >
+        Rename multiple files with sequential numbering and pattern replacement
+      </Card>
+      <Card
+        title="ZIP export"
+        icon="file-zipper"
+        href="/file-management/downloading"
+      >
+        Download all processed images in a single ZIP file
+      </Card>
+    </CardGroup>
+  </div>
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
+  {/* Explore Documentation */}
+  <div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+    <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-3">
+      Explore the documentation
+    </h2>
+    <p className="text-lg text-gray-600 dark:text-gray-400 mb-8">
+      Learn how to customize and integrate PixelFlow into your workflow
+    </p>
+    
+    <CardGroup cols={3}>
+      <Card
+        title="Installation"
+        icon="download"
+        href="/installation"
+      >
+        Set up PixelFlow in your local environment
+      </Card>
+      <Card
+        title="Configuration"
+        icon="gear"
+        href="/configuration"
+      >
+        Configure processing settings and defaults
+      </Card>
+      <Card
+        title="Customization"
+        icon="palette"
+        href="/customization"
+      >
+        Customize branding, colors, and themes
+      </Card>
+      <Card
+        title="API Reference"
+        icon="code"
+        href="/api/hooks/use-image-upload"
+      >
+        Explore hooks, utilities, and components
+      </Card>
+      <Card
+        title="Memory Management"
+        icon="memory"
+        href="/advanced/memory-management"
+      >
+        Optimize performance for large files
+      </Card>
+      <Card
+        title="Performance Tips"
+        icon="rocket"
+        href="/advanced/performance"
+      >
+        Best practices for optimal processing speed
+      </Card>
+    </CardGroup>
+  </div>
 
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
-  </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
-  </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
-  </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
-  </Card>
-</Columns>
-
-## Create beautiful pages
-
-Everything you need to create world-class documentation.
-
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
-
-## Need inspiration?
-
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+  {/* CTA Banner */}
+  <div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+    <div className="relative overflow-hidden bg-gradient-to-r from-[#a855f7] to-[#7e22ce] dark:from-[#7c3aed] dark:to-[#5b21b6] rounded-2xl p-12 border border-[#818cf8]/30">
+      <div className="absolute inset-0 bg-black/10 dark:bg-black/20"></div>
+      <div className="relative text-center">
+        <h2 className="text-3xl font-bold text-white mb-4">
+          Ready to transform your images?
+        </h2>
+        <p className="text-xl text-white/90 max-w-2xl mx-auto mb-8">
+          Start using PixelFlow today and experience the power of client-side image processing
+        </p>
+        <a 
+          href="/quickstart" 
+          className="inline-flex items-center px-8 py-4 bg-white text-[#a855f7] rounded-lg font-semibold hover:bg-gray-100 transition-colors text-lg"
+        >
+          Get Started Now
+        </a>
+      </div>
+    </div>
+  </div>
+</div>

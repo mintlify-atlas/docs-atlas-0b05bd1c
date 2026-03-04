@@ -1,0 +1,254 @@
+---
+title: Introduction
+description: Welcome to PixelFlow — a powerful client-side image processing application for batch optimization, format conversion, resizing, and cropping
+---
+
+<div className="relative overflow-hidden">
+  {/* Hero Section */}
+  <div className="relative bg-gradient-to-br from-[#a855f7] via-[#9333ea] to-[#7e22ce] dark:from-[#7c3aed] dark:via-[#6d28d9] dark:to-[#5b21b6] py-16 rounded-xl mb-8">
+    <div className="absolute inset-0 bg-black/10 dark:bg-black/20"></div>
+    <div className="relative max-w-4xl mx-auto px-6 text-center">
+      <h1 className="text-4xl lg:text-5xl font-bold text-white mb-4">
+        Welcome to PixelFlow
+      </h1>
+      <p className="text-lg text-white/90 max-w-2xl mx-auto">
+        A powerful, privacy-focused image processing tool that works entirely in your browser. No uploads, no servers, no tracking — just pure image processing power.
+      </p>
+    </div>
+  </div>
+</div>
+
+## What is PixelFlow?
+
+PixelFlow is a client-side React 19 single-page application built for batch image processing. It enables you to optimize, resize, crop, convert formats, and rename multiple images simultaneously — all without sending your files to any server.
+
+<CardGroup cols={2}>
+  <Card title="Privacy First" icon="shield-check">
+    All processing happens locally in your browser. Your images never leave your device.
+  </Card>
+  <Card title="Batch Processing" icon="layer-group">
+    Process multiple images at once with intelligent memory management and progress tracking.
+  </Card>
+  <Card title="Zero Backend" icon="browser">
+    Pure client-side architecture means instant processing and no server costs.
+  </Card>
+  <Card title="Fully Customizable" icon="palette">
+    Brand the interface with your own logo, colors, and application name.
+  </Card>
+</CardGroup>
+
+## Key Benefits
+
+<AccordionGroup>
+  <Accordion title="Complete Privacy & Security">
+    Since PixelFlow processes everything client-side, your images never touch external servers. This makes it perfect for handling sensitive content like medical images, legal documents, or confidential photography.
+  </Accordion>
+
+  <Accordion title="Lightning Fast Processing">
+    With optimized batch processing (3 images at a time for uploads, 5 for downloads), PixelFlow efficiently handles large image sets without freezing your browser. Memory management includes low-resolution previews for files over 10MB.
+  </Accordion>
+
+  <Accordion title="Professional-Grade Tools">
+    Built with production-ready libraries:
+    - `browser-image-compression` for optimization
+    - `react-image-file-resizer` for high-quality resizing
+    - Custom canvas-based cropping with 9 position options
+    - Format conversion to JPG, PNG, WEBP, and GIF
+  </Accordion>
+
+  <Accordion title="Enterprise-Ready">
+    Deploy as a branded white-label solution. Customize the logo, application name, and color scheme to match your company's visual identity. Settings persist in localStorage for seamless user experience.
+  </Accordion>
+</AccordionGroup>
+
+## Architecture Overview
+
+PixelFlow follows a clean, modular architecture:
+
+```
+Processing Pipeline:
+Upload → Optimize → Resize → Crop → Format Convert → Rename → Download
+```
+
+<Steps>
+  <Step title="State Management">
+    Three custom React hooks manage the entire application flow:
+    - `useImageUpload` — handles file upload with batch loading (3 at a time)
+    - `useImageProcessor` — applies transformations in a strict order
+    - `useImageRename` — reactive renaming with three modes (sequential, add text, replace text)
+  </Step>
+
+  <Step title="Data Flow">
+    ```
+    uploadedImages → [manual trigger] → processedImages → [reactive] → renamedImages
+    ```
+    Processing is triggered manually by the user, while renaming happens reactively via `useEffect`.
+  </Step>
+
+  <Step title="Processing Order">
+    Operations are applied in a fixed sequence for optimal results:
+    1. **Optimization** — reduce file size (max 1MB, max 1920px dimension)
+    2. **Resize** — change dimensions (px or % units, aspect ratio preserved)
+    3. **Crop** — extract specific regions with position control
+    4. **Format Conversion** — convert to JPG, PNG, WEBP, or GIF
+  </Step>
+
+  <Step title="Memory Management">
+    Intelligent memory handling prevents browser crashes:
+    - Files over 10MB get low-resolution previews (300px)
+    - Memory usage estimation warns users before issues arise
+    - URL cleanup with `revokeObjectURL` prevents memory leaks
+  </Step>
+</Steps>
+
+## Technology Stack
+
+PixelFlow is built with modern web technologies:
+
+<CodeGroup>
+```json package.json
+{
+  "dependencies": {
+    "react": "^19.2.4",
+    "next": "^16.1.6",
+    "antd": "^4.24.10",
+    "browser-image-compression": "^2.0.2",
+    "react-image-file-resizer": "^0.4.8",
+    "jszip": "^3.10.1",
+    "file-saver": "^2.0.5",
+    "prop-types": "^15.8.1"
+  }
+}
+```
+</CodeGroup>
+
+<CardGroup cols={3}>
+  <Card title="React 19" icon="react">
+    Latest React with concurrent features
+  </Card>
+  <Card title="Next.js 16" icon="n">
+    App Router with static export
+  </Card>
+  <Card title="Ant Design v4" icon="ant-design">
+    Professional UI components
+  </Card>
+</CardGroup>
+
+### Core Libraries
+
+| Library | Purpose |
+|---------|----------|
+| `browser-image-compression` | Optimize images with configurable quality and dimensions |
+| `react-image-file-resizer` | High-quality image resizing with aspect ratio control |
+| `jszip` + `file-saver` | Create and download ZIP archives for batch export |
+| `antd` v4 | UI components (Upload, Card, Button, Form, etc.) |
+
+## How It Works
+
+PixelFlow's architecture is designed for performance and reliability:
+
+<Note>
+  **Processing Strategy**: Images are processed in batches of 3 to prevent memory issues. Each batch completes before the next begins, with a 10ms delay for browser rendering updates.
+</Note>
+
+### Component Structure
+
+```
+app/                      # Next.js App Router
+  layout.jsx              # Root layout with metadata
+  [[...slug]]/
+    page.jsx              # Catch-all route for static export
+    client.jsx            # Client wrapper with BrandProvider
+
+src/                      # Application source
+  App.jsx                 # Main app component
+  components/
+    ImageUploader/        # UploadArea, UploadedImagesList
+    ImageProcessor/       # ProcessedImagesList
+    Tools/                # ToolsPanel, ResizeTool, CropTool
+    RenameTools/          # RenamePanel, SequentialRename
+    Common/               # BrandLogo, BrandConfigPanel
+  hooks/                  # useImageUpload, useImageProcessor, useImageRename
+  lib/                    # imageProcessing, memoryManager, logger, constants
+  context/                # BrandContext for theme/branding
+  config/                 # brandConfig defaults
+```
+
+### Context & State
+
+<Tip>
+  **BrandContext** manages application branding (logo, colors, app name) with localStorage persistence under the key `pixelflow_brand_settings`.
+</Tip>
+
+The application uses a single-view architecture with no routing library. State flows through three main hooks:
+
+```jsx src/App.jsx
+function App() {
+  const { uploadedImages, handleUpload, removeImage } = useImageUpload();
+  
+  const {
+    processedImages,
+    processImages,
+    toggleOptimize,
+    changeFormat,
+    updateResizeSettings,
+    updateCropSettings,
+  } = useImageProcessor(uploadedImages);
+  
+  const {
+    renamedImages,
+    toggleCleanText,
+    changeRenameMode,
+    updateSequentialSettings,
+  } = useImageRename(processedImages);
+  
+  // UI renders uploadedImages, processedImages, and renamedImages
+}
+```
+
+## What You Can Do
+
+PixelFlow provides a comprehensive set of image processing tools:
+
+<CardGroup cols={2}>
+  <Card title="Optimize" icon="gauge-high" href="/processing/optimization">
+    Compress images to max 1MB with smart quality adjustment
+  </Card>
+  <Card title="Resize" icon="up-right-and-down-left-from-center" href="/processing/resizing">
+    Change dimensions in pixels or percentages with aspect ratio lock
+  </Card>
+  <Card title="Crop" icon="crop" href="/processing/cropping">
+    Extract regions with presets: square (1:1), landscape (16:9, 4:3), portrait (9:16, 3:4)
+  </Card>
+  <Card title="Convert" icon="file-export" href="/processing/format-conversion">
+    Transform between JPG, PNG, WEBP, and GIF formats
+  </Card>
+  <Card title="Rename" icon="pen-to-square" href="/file-management/renaming">
+    Batch rename with sequential numbering, prefixes, or find-replace
+  </Card>
+  <Card title="Download" icon="download" href="/file-management/downloading">
+    Export individual files or download all as a ZIP archive
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={3}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Get PixelFlow running in 5 minutes
+  </Card>
+  <Card title="Explore Features" icon="list-check" href="/features">
+    Discover all capabilities in detail
+  </Card>
+  <Card title="Installation" icon="download" href="/installation">
+    Set up your development environment
+  </Card>
+</CardGroup>
+
+<Warning>
+  **Browser Compatibility**: PixelFlow requires modern browsers with support for Canvas API, FileReader, and Web Workers. Tested on Chrome, Firefox, Safari, and Edge (latest versions).
+</Warning>
+
+## Questions?
+
+Check out our [GitHub repository](https://github.com/jios325/pixelflow) for source code, issue tracking, and contributions.

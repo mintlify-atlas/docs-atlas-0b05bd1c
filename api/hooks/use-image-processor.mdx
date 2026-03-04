@@ -1,0 +1,440 @@
+---
+title: 'useImageProcessor'
+description: 'Custom React hook for batch image processing with optimization, resize, crop, and format conversion'
+---
+
+## Overview
+
+The `useImageProcessor` hook manages the complete image processing pipeline in PixelFlow. It handles optimization, resizing, cropping, and format conversion with support for batch processing and aspect ratio preservation. Processing is triggered manually via the `processImages` function.
+
+## Import
+
+```javascript
+import useImageProcessor from '@/hooks/useImageProcessor';
+```
+
+## Parameters
+
+<ParamField path="uploadedImages" type="array" required>
+  Array of uploaded image objects from `useImageUpload`. Each object should contain `file`, `name`, `size`, and other metadata.
+</ParamField>
+
+## Usage
+
+```javascript
+function App() {
+  const { uploadedImages } = useImageUpload();
+  
+  const {
+    processedImages,
+    processingSettings,
+    processing,
+    processImages,
+    toggleOptimize,
+    changeFormat,
+    updateResizeSettings,
+    updateCropSettings,
+  } = useImageProcessor(uploadedImages);
+
+  return (
+    <>
+      <ToolsPanel
+        settings={processingSettings}
+        onToggleOptimize={toggleOptimize}
+        onFormatChange={changeFormat}
+        onResizeUpdate={updateResizeSettings}
+        onCropUpdate={updateCropSettings}
+      />
+      <button onClick={processImages} disabled={processing}>
+        {processing ? 'Processing...' : 'Process Images'}
+      </button>
+    </>
+  );
+}
+```
+
+## Return Values
+
+<ResponseField name="processedImages" type="array" required>
+  Array of processed image objects with additional processing metadata.
+  
+  <Expandable title="Processed Image Object Structure">
+    <ResponseField name="...originalImage" type="object">
+      All properties from the original uploaded image
+    </ResponseField>
+    
+    <ResponseField name="processed" type="boolean">
+      Always `true` for processed images
+    </ResponseField>
+    
+    <ResponseField name="processedFile" type="File">
+      The processed image File object
+    </ResponseField>
+    
+    <ResponseField name="processedPreview" type="string">
+      Blob URL for the processed image preview
+    </ResponseField>
+    
+    <ResponseField name="processedSize" type="number">
+      File size in bytes after processing
+    </ResponseField>
+    
+    <ResponseField name="formattedProcessedSize" type="string">
+      Human-readable file size (e.g., "2.5 MB")
+    </ResponseField>
+    
+    <ResponseField name="newName" type="string">
+      Filename with updated extension based on format conversion
+    </ResponseField>
+    
+    <ResponseField name="fileChanged" type="boolean">
+      Whether any processing operations modified the file
+    </ResponseField>
+    
+    <ResponseField name="mimeType" type="string">
+      MIME type of the processed file
+    </ResponseField>
+    
+    <ResponseField name="optimization" type="object">
+      Optimization statistics
+      
+      <Expandable title="Optimization Object">
+        <ResponseField name="originalSize" type="number">
+          Original file size in bytes
+        </ResponseField>
+        
+        <ResponseField name="newSize" type="number">
+          Processed file size in bytes
+        </ResponseField>
+        
+        <ResponseField name="reduction" type="number">
+          Bytes saved (originalSize - newSize)
+        </ResponseField>
+        
+        <ResponseField name="reductionPercent" type="string">
+          Percentage reduction (e.g., "45.23")
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="error" type="string">
+      Error message if processing failed (optional)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="processingSettings" type="object" required>
+  Current processing configuration.
+  
+  <Expandable title="Processing Settings Structure">
+    <ResponseField name="optimize" type="boolean" default="true">
+      Whether to apply image optimization
+    </ResponseField>
+    
+    <ResponseField name="format" type="string" default="original">
+      Output format: `'original'`, `'jpg'`, `'png'`, `'webp'`, or `'gif'`
+    </ResponseField>
+    
+    <ResponseField name="resize" type="object">
+      Resize configuration
+      
+      <Expandable title="Resize Settings">
+        <ResponseField name="enabled" type="boolean" default="false">
+          Whether resizing is enabled
+        </ResponseField>
+        
+        <ResponseField name="width" type="number" default="800">
+          Target width
+        </ResponseField>
+        
+        <ResponseField name="height" type="number" default="600">
+          Target height
+        </ResponseField>
+        
+        <ResponseField name="maintainAspectRatio" type="boolean" default="true">
+          Whether to preserve aspect ratio
+        </ResponseField>
+        
+        <ResponseField name="unit" type="string" default="px">
+          Dimension unit: `'px'` or `'%'`
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="crop" type="object">
+      Crop configuration
+      
+      <Expandable title="Crop Settings">
+        <ResponseField name="enabled" type="boolean" default="false">
+          Whether cropping is enabled
+        </ResponseField>
+        
+        <ResponseField name="cropType" type="string" default="square">
+          Crop preset type
+        </ResponseField>
+        
+        <ResponseField name="width" type="number" default="500">
+          Crop width in pixels
+        </ResponseField>
+        
+        <ResponseField name="height" type="number" default="500">
+          Crop height in pixels
+        </ResponseField>
+        
+        <ResponseField name="position" type="string" default="center">
+          Crop position: `'center'`, `'top'`, `'bottom'`, `'left'`, or `'right'`
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="processing" type="boolean" required>
+  Whether images are currently being processed
+</ResponseField>
+
+<ResponseField name="processImages" type="function" required>
+  Manually triggers image processing with current settings.
+  
+  ```javascript
+  processImages() => Promise<void>
+  ```
+</ResponseField>
+
+<ResponseField name="toggleOptimize" type="function" required>
+  Toggles the optimization setting.
+  
+  ```javascript
+  toggleOptimize() => void
+  ```
+</ResponseField>
+
+<ResponseField name="changeFormat" type="function" required>
+  Changes the output format.
+  
+  <Expandable title="Function Signature">
+    ```javascript
+    changeFormat(format: string) => void
+    ```
+    
+    <ParamField path="format" type="string" required>
+      Output format: `'original'`, `'jpg'`, `'png'`, `'webp'`, or `'gif'`
+    </ParamField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="updateResizeSettings" type="function" required>
+  Updates resize configuration. Automatically maintains aspect ratio if enabled.
+  
+  <Expandable title="Function Signature">
+    ```javascript
+    updateResizeSettings(settings: Partial<ResizeSettings>) => void
+    ```
+    
+    <ParamField path="settings" type="object" required>
+      Partial resize settings to update
+    </ParamField>
+    
+    <Expandable title="Example">
+      ```javascript
+      // Update width (height auto-calculated if maintainAspectRatio=true)
+      updateResizeSettings({ width: 1200 });
+      
+      // Change unit to percentage
+      updateResizeSettings({ unit: '%', width: 50 });
+      
+      // Toggle aspect ratio preservation
+      updateResizeSettings({ maintainAspectRatio: false });
+      ```
+    </Expandable>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="updateCropSettings" type="function" required>
+  Updates crop configuration.
+  
+  <Expandable title="Function Signature">
+    ```javascript
+    updateCropSettings(settings: Partial<CropSettings>) => void
+    ```
+    
+    <ParamField path="settings" type="object" required>
+      Partial crop settings to update
+    </ParamField>
+    
+    <Expandable title="Example">
+      ```javascript
+      // Enable cropping with custom dimensions
+      updateCropSettings({ 
+        enabled: true, 
+        width: 1000, 
+        height: 750,
+        position: 'center'
+      });
+      ```
+    </Expandable>
+  </Expandable>
+</ResponseField>
+
+## Processing Pipeline
+
+Operations are applied in the following order:
+
+<Steps>
+  <Step title="Optimization">
+    Compresses image using `browser-image-compression`
+    
+    - Max size: 1MB (OPTIMIZE_MAX_SIZE_MB)
+    - Max dimension: 1920px (OPTIMIZE_MAX_DIMENSION)
+    - Web worker enabled for performance
+  </Step>
+  
+  <Step title="Resize">
+    Resizes image using `react-image-file-resizer`
+    
+    - Supports pixel (px) and percentage (%) units
+    - Automatic aspect ratio preservation when enabled
+    - Percentage is calculated from original dimensions
+  </Step>
+  
+  <Step title="Crop">
+    Crops image using custom canvas implementation
+    
+    - Applied after resize for accurate dimensions
+    - Supports multiple position options
+    - Custom width/height in pixels
+  </Step>
+  
+  <Step title="Format Conversion">
+    Converts image format using canvas `toBlob()`
+    
+    - JPG, PNG, WEBP, GIF support
+    - Automatic MIME type detection
+    - Extension updated in filename
+  </Step>
+</Steps>
+
+```javascript
+// Processing pipeline source code reference
+// 1. Optimization (src/hooks/useImageProcessor.js:119-127)
+if (processingSettings.optimize) {
+  processedFile = await optimizeImage(processedFile, {
+    maxSizeMB: OPTIMIZE_MAX_SIZE_MB,
+    maxWidthOrHeight: OPTIMIZE_MAX_DIMENSION,
+    useWebWorker: true,
+  });
+}
+
+// 2. Resize (src/hooks/useImageProcessor.js:130-141)
+if (processingSettings.resize.enabled) {
+  processedFile = await resizeImage(
+    processedFile,
+    resizeDimensions.width,
+    resizeDimensions.height,
+    processingSettings.resize.maintainAspectRatio
+  );
+}
+
+// 3. Crop (src/hooks/useImageProcessor.js:164-202)
+if (processingSettings.crop.enabled) {
+  processedFile = await cropImage(
+    processedFile,
+    cropWidth,
+    cropHeight,
+    processingSettings.crop.position || 'center'
+  );
+}
+
+// 4. Format Conversion (src/hooks/useImageProcessor.js:205-224)
+if (processingSettings.format !== 'original') {
+  processedFile = await convertImageFormat(
+    processedFile,
+    processingSettings.format
+  );
+}
+```
+
+## Batch Processing
+
+Images are processed in batches for optimal performance:
+
+- **Batch Size**: 5 images at a time (PROCESSING_BATCH_SIZE)
+- **Parallel Processing**: Images within a batch process simultaneously
+- **Sequential Batches**: Batches process one after another
+- **Error Isolation**: Failed images don't stop batch processing
+
+## Aspect Ratio Preservation
+
+When `maintainAspectRatio` is enabled, the hook intelligently adjusts dimensions:
+
+```javascript
+// Updating width auto-calculates height
+updateResizeSettings({ width: 1200 });
+// If aspect ratio is 4:3, height becomes 900
+
+// Updating height auto-calculates width
+updateResizeSettings({ height: 600 });
+// If aspect ratio is 4:3, width becomes 800
+
+// Toggling maintainAspectRatio captures current ratio
+updateResizeSettings({ maintainAspectRatio: true });
+// Current ratio: width / height is saved
+```
+
+## Percentage-Based Resizing
+
+The hook supports percentage-based dimensions:
+
+```javascript
+// Resize to 50% of original dimensions
+updateResizeSettings({ 
+  enabled: true,
+  unit: '%', 
+  width: 50 
+});
+
+// Hook calculates actual pixel dimensions:
+// Original 2000x1500 -> New 1000x750
+```
+
+Source: `src/hooks/useImageProcessor.js:95-114`
+
+## Auto-Cleanup
+
+The hook automatically clears processed images when:
+
+- `uploadedImages` becomes empty
+- `uploadedImages` changes (new upload replaces old)
+
+Source: `src/hooks/useImageProcessor.js:306-311`
+
+## Error Handling
+
+Robust error handling ensures stability:
+
+- Individual image errors are caught and logged
+- Failed images return unprocessed with error message
+- Format conversion errors fallback to original format
+- Dimension calculation errors are logged and skipped
+
+```javascript
+try {
+  // Process image operations...
+  return processedImageObject;
+} catch (error) {
+  logger.error(`Error processing image ${img.name}:`, error);
+  return {
+    ...img,
+    processed: true,
+    processedPreview: img.preview,
+    processedFile: img.file,
+    error: error.message,
+  };
+}
+```
+
+## Related
+
+- [useImageUpload](/api/hooks/use-image-upload) - Upload and validate images
+- [useImageRename](/api/hooks/use-image-rename) - Rename processed images
+- [Image Processing Utilities](/api/utilities/image-processing) - Core processing functions

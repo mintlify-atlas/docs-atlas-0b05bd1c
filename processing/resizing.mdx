@@ -1,0 +1,425 @@
+---
+title: 'Image Resizing'
+description: 'Resize images using pixels or percentages with aspect ratio control'
+icon: 'expand'
+---
+
+## Overview
+
+PixelFlow provides flexible image resizing with support for both pixel and percentage dimensions. Resizing is the **second step** in the processing pipeline, applied after optimization but before cropping.
+
+<Info>
+  Resizing runs after optimization (to work with smaller files) and before cropping (to ensure crop dimensions match the resized image).
+</Info>
+
+## Resize Modes
+
+PixelFlow supports two resize modes:
+
+<CardGroup cols={2}>
+  <Card title="Pixel Mode" icon="ruler">
+    Specify exact dimensions in pixels (e.g., 800x600)
+  </Card>
+  <Card title="Percentage Mode" icon="percent">
+    Resize relative to original dimensions (e.g., 50% = half size)
+  </Card>
+</CardGroup>
+
+## Default Settings
+
+| Setting | Default Value | Description |
+|---------|---------------|-------------|
+| **Enabled** | `false` | Resizing is off by default |
+| **Width** | 800px | Default target width |
+| **Height** | 600px | Default target height |
+| **Maintain Aspect Ratio** | `true` | Preserve original proportions |
+| **Unit** | `px` | Use pixels (alternative: `%`) |
+| **Quality** | 100 | Maximum quality (0-100 scale) |
+
+<Note>
+  Default values are defined in `src/lib/constants.js` as `DEFAULT_RESIZE_WIDTH` and `DEFAULT_RESIZE_HEIGHT`.
+</Note>
+
+## How Resizing Works
+
+<Steps>
+  <Step title="Calculate target dimensions">
+    If using percentage mode, calculate pixel dimensions based on the original image size.
+  </Step>
+  
+  <Step title="Apply aspect ratio rules">
+    If aspect ratio is locked, adjust height to match width (or vice versa) based on the original proportions.
+  </Step>
+  
+  <Step title="Resize with react-image-file-resizer">
+    Use the `react-image-file-resizer` library to perform the actual resize operation.
+  </Step>
+  
+  <Step title="Return resized blob">
+    A new Blob is returned with the resized image data.
+  </Step>
+</Steps>
+
+## Code Implementation
+
+### Basic Resize Function
+
+```javascript
+import Resizer from 'react-image-file-resizer';
+import { RESIZE_QUALITY } from '@/lib/constants';
+
+export const resizeImage = (file, width, height, maintainAspectRatio = true) => {
+  return new Promise((resolve) => {
+    Resizer.imageFileResizer(
+      file,
+      width,
+      height,
+      file.type.split('/')[1].toUpperCase(), // Format (JPEG, PNG, etc.)
+      RESIZE_QUALITY, // 100 (maximum quality)
+      0, // Rotation (0 = no rotation)
+      (blob) => {
+        resolve(blob);
+      },
+      'blob',
+      width,
+      height,
+      maintainAspectRatio ? (file.type.includes('png') ? 3 : 1) : 0
+    );
+  });
+};
+```
+
+<Info>
+  The last parameter determines aspect ratio behavior:
+  - `3` for PNG (high quality with aspect ratio)
+  - `1` for JPEG (standard with aspect ratio)
+  - `0` for no aspect ratio preservation
+</Info>
+
+### Percentage Calculation
+
+When using percentage mode, dimensions are calculated dynamically:
+
+```javascript
+export const calculatePercentageDimensions = async (
+  file,
+  widthPercent,
+  maintainAspectRatio = true
+) => {
+  // Load the image to get original dimensions
+  const img = await new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = (err) => reject(new Error('Error loading image'));
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      img.src = e.target.result;
+    };
+    reader.onerror = (err) => reject(new Error('Error reading file'));
+    reader.readAsDataURL(file);
+  });
+
+  // Calculate new width based on percentage
+  const newWidth = Math.round(img.width * (widthPercent / 100));
+
+  // Calculate new height
+  let newHeight;
+  if (maintainAspectRatio) {
+    const aspectRatio = img.width / img.height;
+    newHeight = Math.round(newWidth / aspectRatio);
+  } else {
+    // Use same percentage for height
+    newHeight = Math.round(img.height * (widthPercent / 100));
+  }
+
+  return {
+    width: newWidth,
+    height: newHeight,
+    originalWidth: img.width,
+    originalHeight: img.height,
+  };
+};
+```
+
+## Usage Examples
+
+### Enable and Configure Resizing
+
+```javascript
+const { processingSettings, updateResizeSettings } = useImageProcessor(uploadedImages);
+
+// Enable resize with pixel dimensions
+updateResizeSettings({
+  enabled: true,
+  width: 1200,
+  height: 900,
+  maintainAspectRatio: true,
+  unit: 'px'
+});
+
+// Enable resize with percentage
+updateResizeSettings({
+  enabled: true,
+  width: 50,  // 50% of original size
+  unit: '%',
+  maintainAspectRatio: true
+});
+
+// Disable resizing
+updateResizeSettings({ enabled: false });
+```
+
+### Pipeline Execution
+
+```javascript
+// 1. First: Optimization
+if (processingSettings.optimize) {
+  processedFile = await optimizeImage(processedFile);
+}
+
+// 2. Second: Resize (if enabled)
+if (processingSettings.resize.enabled) {
+  let resizeDimensions = {
+    width: processingSettings.resize.width,
+    height: processingSettings.resize.height,
+  };
+
+  // Calculate dimensions if using percentage
+  if (processingSettings.resize.unit === '%') {
+    const percentWidth = processingSettings.resize.width;
+    const dimensions = await calculatePercentageDimensions(
+      processedFile,
+      percentWidth,
+      processingSettings.resize.maintainAspectRatio
+    );
+    resizeDimensions = dimensions;
+  }
+
+  // Apply resize
+  processedFile = await resizeImage(
+    processedFile,
+    resizeDimensions.width,
+    resizeDimensions.height,
+    processingSettings.resize.maintainAspectRatio
+  );
+}
+
+// 3. Then: Crop...
+// 4. Finally: Format conversion...
+```
+
+## Aspect Ratio Control
+
+PixelFlow provides intelligent aspect ratio management:
+
+<AccordionGroup>
+  <Accordion title="Maintaining aspect ratio (default)">
+    When `maintainAspectRatio` is `true`, changing width automatically adjusts height:
+    
+    ```javascript
+    // User changes width to 1000px
+    updateResizeSettings({ width: 1000 });
+    
+    // Hook automatically calculates height based on stored aspect ratio
+    const newHeight = Math.round(1000 / aspectRatio);
+    // Result: width=1000, height=750 (if ratio was 4:3)
+    ```
+    
+    The aspect ratio is calculated and stored when:
+    - Settings are initially loaded
+    - User toggles aspect ratio lock ON
+    - User manually adjusts both width and height
+  </Accordion>
+  
+  <Accordion title="Unlocking aspect ratio">
+    When `maintainAspectRatio` is `false`, width and height can be changed independently:
+    
+    ```javascript
+    updateResizeSettings({
+      maintainAspectRatio: false,
+      width: 1000,
+      height: 500  // Different aspect ratio (2:1)
+    });
+    ```
+    
+    This allows creating images with custom proportions (e.g., wide banners, square thumbnails).
+  </Accordion>
+  
+  <Accordion title="Aspect ratio state management">
+    The hook maintains aspect ratio state separately:
+    
+    ```javascript
+    const [aspectRatio, setAspectRatio] = useState(4 / 3);
+    
+    // Updates when width or height changes
+    useEffect(() => {
+      if (processingSettings.resize.width && processingSettings.resize.height) {
+        const newAspectRatio = 
+          processingSettings.resize.width / processingSettings.resize.height;
+        if (newAspectRatio > 0 && isFinite(newAspectRatio)) {
+          setAspectRatio(newAspectRatio);
+        }
+      }
+    }, [processingSettings.resize.width, processingSettings.resize.height]);
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Percentage Mode Details
+
+### How Percentage Works
+
+<Steps>
+  <Step title="Load original image">
+    Read the file and create an Image element to get original dimensions.
+  </Step>
+  
+  <Step title="Calculate new width">
+    ```javascript
+    const newWidth = Math.round(originalWidth * (percentage / 100));
+    // Example: 2000px * (50 / 100) = 1000px
+    ```
+  </Step>
+  
+  <Step title="Calculate new height">
+    If aspect ratio is maintained:
+    ```javascript
+    const aspectRatio = originalWidth / originalHeight;
+    const newHeight = Math.round(newWidth / aspectRatio);
+    ```
+    
+    Otherwise:
+    ```javascript
+    const newHeight = Math.round(originalHeight * (percentage / 100));
+    ```
+  </Step>
+  
+  <Step title="Apply resize with calculated pixels">
+    The percentage is converted to pixels, then standard pixel resize is applied.
+  </Step>
+</Steps>
+
+### Example Calculation
+
+```javascript
+// Original image: 2000x1500 (4:3 aspect ratio)
+// Resize to 50%
+
+const dimensions = await calculatePercentageDimensions(file, 50, true);
+
+// Result:
+// {
+//   width: 1000,           // 2000 * 0.5
+//   height: 750,           // Maintains 4:3 ratio
+//   originalWidth: 2000,
+//   originalHeight: 1500
+// }
+```
+
+## Quality Settings
+
+Resize quality is set to maximum (100 on a 0-100 scale):
+
+```javascript
+// src/lib/constants.js
+export const RESIZE_QUALITY = 100;
+```
+
+<Note>
+  This ensures resized images maintain maximum visual quality. The optimization step (which runs first) handles file size reduction.
+</Note>
+
+## Best Practices
+
+<Warning>
+  Always resize **before** cropping. Resizing first ensures your crop dimensions match the resized image, not the original.
+</Warning>
+
+<AccordionGroup>
+  <Accordion title="Optimize first, resize second">
+    The pipeline order is intentional:
+    1. **Optimize** to reduce file size
+    2. **Resize** to change dimensions
+    3. **Crop** to adjust composition
+    4. **Convert format** to finalize
+    
+    This order ensures each operation works with the most appropriate version of the image.
+  </Accordion>
+  
+  <Accordion title="Use percentages for responsive batches">
+    When processing images of varying sizes, percentage mode ensures consistent relative sizing:
+    
+    ```javascript
+    // All images reduced to 50% of their original size
+    updateResizeSettings({ width: 50, unit: '%' });
+    ```
+    
+    This is better than fixed pixels when images have different original dimensions.
+  </Accordion>
+  
+  <Accordion title="Lock aspect ratio for most use cases">
+    Keep `maintainAspectRatio: true` to prevent image distortion. Only unlock for special cases like:
+    - Creating square thumbnails from rectangular images
+    - Specific banner dimensions required
+  </Accordion>
+  
+  <Accordion title="Consider original dimensions">
+    Resizing won't upscale images beyond their original size by default. If you need larger images, the resize will maintain the original size.
+  </Accordion>
+</AccordionGroup>
+
+## Common Resize Presets
+
+Here are common resize configurations:
+
+```javascript
+// HD thumbnail (maintains ratio)
+updateResizeSettings({
+  enabled: true,
+  width: 1920,
+  height: 1080,
+  maintainAspectRatio: true,
+  unit: 'px'
+});
+
+// Web-optimized (smaller)
+updateResizeSettings({
+  enabled: true,
+  width: 800,
+  height: 600,
+  maintainAspectRatio: true,
+  unit: 'px'
+});
+
+// Half-size (percentage)
+updateResizeSettings({
+  enabled: true,
+  width: 50,
+  maintainAspectRatio: true,
+  unit: '%'
+});
+
+// Square thumbnail (distortion possible)
+updateResizeSettings({
+  enabled: true,
+  width: 500,
+  height: 500,
+  maintainAspectRatio: false,
+  unit: 'px'
+});
+```
+
+## Related Topics
+
+<CardGroup cols={2}>
+  <Card title="Optimization" icon="gauge-high" href="/processing/optimization">
+    Step 1: Optimize images before resizing
+  </Card>
+  <Card title="Cropping" icon="crop" href="/processing/cropping">
+    Step 3: Crop images after resizing
+  </Card>
+  <Card title="Batch Operations" icon="layer-group" href="/processing/batch-operations">
+    See the complete processing order
+  </Card>
+</CardGroup>

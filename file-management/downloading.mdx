@@ -1,0 +1,511 @@
+---
+title: 'Downloading Images'
+description: 'Export your processed images as a ZIP archive or download them individually'
+icon: 'download'
+---
+
+## Overview
+
+After processing and renaming your images, PixelFlow provides flexible download options to export your files. All downloads are prepared client-side in batches for optimal performance.
+
+<Note>
+  Downloaded images use the **renamed filenames** you configured and include all processing changes (optimization, resize, crop, format conversion).
+</Note>
+
+## Download Methods
+
+<CardGroup cols={2}>
+  <Card title="ZIP Download" icon="file-zipper">
+    **Recommended for multiple images**
+    
+    All processed images packaged into a single ZIP file with timestamp.
+  </Card>
+  
+  <Card title="Individual Download" icon="file-arrow-down">
+    **For single images**
+    
+    Download specific images one at a time from the preview list.
+  </Card>
+</CardGroup>
+
+## ZIP Download Process
+
+### How It Works
+
+<Steps>
+  <Step title="Click Download Button">
+    The primary download button appears below the processed images list.
+    
+    The button shows the PixelFlow primary brand color and is disabled until processing completes.
+    
+    Reference: `src/components/DownloadButton.jsx:122-137`
+  </Step>
+  
+  <Step title="Batch Preparation">
+    Images are prepared in batches of **5 at a time** to prevent browser freezing.
+    
+    Progress indicator shows: `"Preparing batch 1 of 3..."`
+    
+    Reference: `src/components/DownloadButton.jsx:32` and `src/lib/constants.js:18`
+  </Step>
+  
+  <Step title="ZIP Generation">
+    JSZip library packages all images into a compressed archive.
+    
+    Uses `STORE` compression (no additional compression) since images are already compressed.
+    
+    Reference: `src/components/DownloadButton.jsx:87-91`
+  </Step>
+  
+  <Step title="Automatic Download">
+    Browser initiates download with timestamped filename:
+    
+    Format: `pixelflow_images_[timestamp].zip`
+    
+    Example: `pixelflow_images_1709571234567.zip`
+    
+    Reference: `src/components/DownloadButton.jsx:97`
+  </Step>
+</Steps>
+
+### Batch Processing Details
+
+<Accordion title="Why Batch Processing?">
+  Processing 5 images at a time prevents:
+  
+  - **Browser freezing** - Large batches can lock up the UI
+  - **Memory overflow** - Too many simultaneous operations can crash the browser
+  - **Poor user experience** - Progress updates keep users informed
+  
+  The system processes each batch, then waits 10ms before starting the next batch to allow the browser to update the UI.
+  
+  Reference: `src/components/DownloadButton.jsx:34-78`
+</Accordion>
+
+<Accordion title="Image Source Priority">
+  For each image, PixelFlow uses the following priority:
+  
+  1. **Processed file** - If processing was applied, use the processed Blob
+  2. **Processed preview** - If no file Blob exists, fetch from preview URL
+  3. **Original preview** - Fallback to original if no processing occurred
+  
+  ```javascript
+  // From src/components/DownloadButton.jsx:54-62
+  if (image.processedFile) {
+    blob = image.processedFile;
+  } else {
+    const response = await fetch(image.processedPreview || image.preview);
+    blob = await response.blob();
+  }
+  ```
+</Accordion>
+
+### ZIP Filename Structure
+
+The ZIP archive uses this naming convention:
+
+```
+[appName]_images_[timestamp].zip
+```
+
+**Example outputs:**
+- `pixelflow_images_1709571234567.zip`
+- `myapp_images_1709582345678.zip` (if brand name is changed)
+
+The timestamp ensures unique filenames and prevents overwriting previous downloads.
+
+## Individual Downloads
+
+### Using File Validation Utils
+
+PixelFlow provides utility functions for individual image downloads:
+
+```javascript
+// From src/lib/fileValidation.js:77-79
+import { downloadImage } from '@/lib/fileValidation';
+
+downloadImage(image);
+```
+
+### How It Works
+
+<Steps>
+  <Step title="Select Image">
+    Click or tap on a specific image in the processed images list.
+  </Step>
+  
+  <Step title="Initiate Download">
+    The `downloadImage` function uses `file-saver` library's `saveAs()` method.
+    
+    Reference: `src/lib/fileValidation.js:77-79`
+  </Step>
+  
+  <Step title="File Selection">
+    Downloads the processed file if available, otherwise falls back to original:
+    ```javascript
+    saveAs(image.processedFile || image.originalFile, image.name);
+    ```
+  </Step>
+  
+  <Step title="Browser Download">
+    Browser's native download prompt appears with the image filename.
+  </Step>
+</Steps>
+
+<Info>
+  Individual downloads use the **current filename** shown in the preview, including any renaming applied.
+</Info>
+
+## Download Button Component
+
+### Features
+
+<CardGroup cols={2}>
+  <Card title="Loading State" icon="spinner">
+    Shows spinner animation during ZIP preparation and generation.
+  </Card>
+  
+  <Card title="Disabled State" icon="ban">
+    Button is disabled when:
+    - No images are loaded
+    - Images are still being processed
+    - Download is already in progress
+  </Card>
+  
+  <Card title="Brand Integration" icon="palette">
+    Button color matches the primary brand color from BrandContext.
+  </Card>
+  
+  <Card title="Progress Messages" icon="message">
+    Real-time updates show batch progress and completion status.
+  </Card>
+</CardGroup>
+
+### Component Props
+
+```javascript
+// From src/components/DownloadButton.jsx:16
+<DownloadButton
+  images={processedImages}  // Array of image objects
+  loading={isProcessing}    // Disable during processing
+/>
+```
+
+## Memory Management
+
+### Resource Cleanup
+
+PixelFlow automatically manages memory during downloads:
+
+<Accordion title="URL Cleanup">
+  After ZIP generation, the temporary blob URL is immediately revoked:
+  
+  ```javascript
+  // From src/components/DownloadButton.jsx:105
+  URL.revokeObjectURL(url);
+  ```
+  
+  This prevents memory leaks from accumulating blob URLs.
+</Accordion>
+
+<Accordion title="DOM Element Cleanup">
+  Temporary download links are removed after triggering:
+  
+  ```javascript
+  // From src/components/DownloadButton.jsx:100-104
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  ```
+</Accordion>
+
+## Error Handling
+
+### Common Download Errors
+
+<AccordionGroup>
+  <Accordion title="No images to download">
+    **Error:** "No hay imágenes para descargar" (No images to download)
+    
+    **Cause:** Download button clicked with empty image list.
+    
+    **Solution:** Upload and process images before attempting to download.
+    
+    Reference: `src/components/DownloadButton.jsx:22-25`
+  </Accordion>
+  
+  <Accordion title="Download preparation failed">
+    **Error:** "Error al descargar las imágenes" (Error downloading images)
+    
+    **Possible causes:**
+    - Browser memory exceeded
+    - Corrupted processed file
+    - Network error fetching preview blob
+    
+    **Solutions:**
+    - Try downloading fewer images at once
+    - Refresh the page and re-process
+    - Check browser console for specific errors
+    
+    Reference: `src/components/DownloadButton.jsx:111-116`
+  </Accordion>
+  
+  <Accordion title="ZIP generation timeout">
+    **Symptom:** Progress indicator stuck on "Generating ZIP file..."
+    
+    **Cause:** Very large batch (many high-resolution images) taking excessive time.
+    
+    **Solution:** 
+    - Wait for completion (may take 30+ seconds for 50 large images)
+    - Process smaller batches
+    - Enable optimization to reduce file sizes
+  </Accordion>
+</AccordionGroup>
+
+### Error Logging
+
+All download errors are logged for debugging:
+
+```javascript
+// From src/components/DownloadButton.jsx:71
+logger.error(`Error processing image ${image.name}:`, error);
+```
+
+Check the browser console (F12) for detailed error messages if downloads fail.
+
+## Performance Optimization
+
+### Why STORE Compression?
+
+<Note>
+  PixelFlow uses `compression: 'STORE'` when generating ZIP files, which means **no additional compression**.
+</Note>
+
+**Reasoning:**
+- Image files (JPEG, PNG, WEBP) are already compressed
+- Additional compression provides minimal file size reduction
+- STORE mode is **significantly faster** than DEFLATE compression
+- Reduces processing time, especially for large batches
+
+Reference: `src/components/DownloadButton.jsx:90`
+
+### Batch Size Tuning
+
+The download batch size is optimized for performance:
+
+```javascript
+// From src/lib/constants.js:18
+DOWNLOAD_BATCH_SIZE = 5
+```
+
+**Why 5 images per batch?**
+- Small enough to prevent UI freezing
+- Large enough to process batches efficiently
+- Tested across different browsers and image sizes
+- Balances speed with user experience
+
+## Download States
+
+### Button State Matrix
+
+| Condition | Button State | Icon | Message |
+|-----------|--------------|------|----------|
+| No images loaded | Disabled | Download | "Descargar" (Download) |
+| Processing images | Disabled | Download | "Descargar" |
+| Images ready | Enabled | Download | "Descargar" |
+| Preparing download | Loading | Spinner | "Preparando lote X de Y..." |
+| Generating ZIP | Loading | Spinner | "Generando archivo ZIP..." |
+| Download complete | Enabled | Download | "X imágenes descargadas" |
+
+Reference: `src/components/DownloadButton.jsx:128`
+
+## Integration with Other Features
+
+### Data Flow
+
+<Steps>
+  <Step title="Upload">
+    Images uploaded via `useImageUpload` hook → `uploadedImages` state
+  </Step>
+  
+  <Step title="Process">
+    Processing applied via `useImageProcessor` hook → `processedImages` state
+  </Step>
+  
+  <Step title="Rename">
+    Renaming applied via `useImageRename` hook → `renamedImages` state
+  </Step>
+  
+  <Step title="Download">
+    `DownloadButton` receives `renamedImages` and packages them into ZIP
+  </Step>
+</Steps>
+
+### Complete Pipeline
+
+```javascript
+// Simplified data flow
+uploadedImages → processedImages → renamedImages → downloadable ZIP
+
+// Each image object evolves:
+{
+  // After upload
+  file: File,
+  name: 'photo.jpg',
+  preview: 'blob:...',
+  
+  // After processing
+  processedFile: Blob,
+  processedPreview: 'blob:...',
+  
+  // After renaming
+  newName: 'IMG_001.jpg',
+  renamed: true,
+}
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Wait for Processing" icon="hourglass-half">
+    Ensure all images finish processing before downloading to get complete results.
+  </Card>
+  
+  <Card title="Check Filenames" icon="magnifying-glass">
+    Preview renamed filenames in the list before downloading to verify naming patterns.
+  </Card>
+  
+  <Card title="Close Other Tabs" icon="window-minimize">
+    Free up browser memory when downloading large batches by closing unnecessary tabs.
+  </Card>
+  
+  <Card title="Use ZIP for Batches" icon="boxes-stacked">
+    Always use ZIP download for multiple images - it's more efficient than individual downloads.
+  </Card>
+</CardGroup>
+
+## Browser Compatibility
+
+### Supported Features
+
+| Feature | Chrome/Edge | Firefox | Safari | Mobile |
+|---------|-------------|---------|--------|--------|
+| ZIP download | ✅ Full | ✅ Full | ✅ Full | ✅ Full |
+| Batch processing | ✅ 5/batch | ✅ 5/batch | ✅ 5/batch | ⚠️ 3/batch* |
+| Progress indicators | ✅ | ✅ | ✅ | ✅ |
+| Auto-filename | ✅ | ✅ | ⚠️ May prompt | ⚠️ May prompt |
+
+*Mobile browsers may process slower due to memory constraints.
+
+### Known Limitations
+
+<Warning>
+  **Safari on iOS** may prompt for download location on each file. This is a browser security feature and cannot be bypassed.
+</Warning>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Download starts but file is corrupted">
+    **Symptoms:** ZIP won't open or images are blank
+    
+    **Causes:**
+    - Browser interrupted generation process
+    - Insufficient memory during ZIP creation
+    - Antivirus software interfering
+    
+    **Solutions:**
+    1. Disable browser extensions temporarily
+    2. Close other applications to free RAM
+    3. Try downloading fewer images at once
+    4. Clear browser cache and retry
+  </Accordion>
+  
+  <Accordion title="Download button stays disabled">
+    **Cause:** Processing hasn't completed or images array is empty.
+    
+    **Check:**
+    - Look for processing progress indicators
+    - Verify images appear in the processed images list
+    - Check browser console for errors
+    
+    **Solution:** Wait for processing to complete, or re-upload and re-process images.
+  </Accordion>
+  
+  <Accordion title="Filename is unexpected">
+    **Issue:** Downloaded ZIP has different name than expected.
+    
+    **Explanation:** Filename uses the format `[appName]_images_[timestamp].zip`
+    
+    The `appName` comes from BrandContext settings. If you've customized the brand name, it will appear in the filename.
+    
+    **To change:** Modify brand settings in the configuration panel.
+  </Accordion>
+  
+  <Accordion title="Progress indicator disappears without download">
+    **Symptom:** Loading message vanishes but no download starts.
+    
+    **Likely causes:**
+    - JavaScript error during ZIP generation (check console)
+    - Browser popup blocker prevented download
+    - Insufficient storage space on device
+    
+    **Solutions:**
+    1. Check browser console (F12) for errors
+    2. Allow popups for the site
+    3. Free up disk space
+    4. Try a different browser
+  </Accordion>
+</AccordionGroup>
+
+## Advanced Usage
+
+### Custom Download Functions
+
+For developers integrating PixelFlow, you can use the utility functions directly:
+
+```javascript
+import { downloadImage, downloadImagesAsZip } from '@/lib/fileValidation';
+
+// Download single image
+downloadImage(imageObject);
+
+// Download multiple as ZIP with custom name
+await downloadImagesAsZip(imagesArray, 'my-custom-name.zip');
+```
+
+Reference: `src/lib/fileValidation.js:77-102`
+
+### ZIP Configuration
+
+To modify ZIP generation behavior:
+
+```javascript
+const content = await zip.generateAsync({
+  type: 'blob',
+  compression: 'STORE',     // Change to 'DEFLATE' for compression
+  compressionOptions: {     // Only used with DEFLATE
+    level: 6                // 1 (fastest) to 9 (best compression)
+  }
+});
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Upload More Images" icon="cloud-arrow-up" href="/file-management/uploading">
+    Start a new batch with different images
+  </Card>
+  
+  <Card title="Customize Processing" icon="sliders" href="/processing/batch-operations">
+    Fine-tune optimization, resize, crop, and format conversion settings
+  </Card>
+  
+  <Card title="Brand Customization" icon="paintbrush" href="/advanced/brand-customization">
+    Customize the app name and colors used in your downloads
+  </Card>
+  
+  <Card title="Troubleshooting Guide" icon="life-ring" href="/introduction">
+    Find solutions to common issues and errors
+  </Card>
+</CardGroup>

@@ -1,0 +1,226 @@
+---
+title: 'useImageUpload'
+description: 'Custom React hook for handling image upload, batch processing, and memory management'
+---
+
+## Overview
+
+The `useImageUpload` hook manages the complete image upload workflow in PixelFlow, including file validation, batch processing, memory optimization for large files, and preview generation. It processes images in batches to prevent memory issues and creates low-resolution previews for files larger than 10MB.
+
+## Import
+
+```javascript
+import useImageUpload from '@/hooks/useImageUpload';
+```
+
+## Usage
+
+```javascript
+function App() {
+  const { 
+    uploadedImages, 
+    loading, 
+    handleUpload, 
+    removeImage, 
+    clearImages 
+  } = useImageUpload();
+
+  return (
+    <UploadArea
+      onUpload={handleUpload}
+      loading={loading}
+      uploadedImages={uploadedImages}
+      onRemove={removeImage}
+    />
+  );
+}
+```
+
+## Return Values
+
+The hook returns an object with the following properties:
+
+<ResponseField name="uploadedImages" type="array" required>
+  Array of uploaded image objects. Each image object contains:
+  
+  <Expandable title="Image Object Structure">
+    <ResponseField name="id" type="string">
+      Unique identifier in format `img-{timestamp}-{index}`
+    </ResponseField>
+    
+    <ResponseField name="file" type="File">
+      Original File object from the browser
+    </ResponseField>
+    
+    <ResponseField name="name" type="string">
+      Current file name (may change during renaming)
+    </ResponseField>
+    
+    <ResponseField name="size" type="number">
+      File size in bytes
+    </ResponseField>
+    
+    <ResponseField name="type" type="string">
+      MIME type (e.g., 'image/jpeg', 'image/png')
+    </ResponseField>
+    
+    <ResponseField name="preview" type="string">
+      Blob URL for image preview (low-res for large files)
+    </ResponseField>
+    
+    <ResponseField name="originalName" type="string">
+      Original file name, preserved for reference
+    </ResponseField>
+    
+    <ResponseField name="isLargeImage" type="boolean">
+      True if file size exceeds 10MB (LARGE_IMAGE_THRESHOLD)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="loading" type="boolean" required>
+  Indicates whether images are currently being processed. True during batch upload operations.
+</ResponseField>
+
+<ResponseField name="handleUpload" type="function" required>
+  Processes and uploads image files.
+  
+  <Expandable title="Function Signature">
+    ```javascript
+    handleUpload(files: File[]) => Promise<void>
+    ```
+    
+    <ParamField path="files" type="File[]" required>
+      Array of image File objects to upload
+    </ParamField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="removeImage" type="function" required>
+  Removes a single image from the uploaded list and revokes its preview URL.
+  
+  <Expandable title="Function Signature">
+    ```javascript
+    removeImage(id: string) => void
+    ```
+    
+    <ParamField path="id" type="string" required>
+      Unique identifier of the image to remove
+    </ParamField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="clearImages" type="function" required>
+  Removes all uploaded images and revokes all preview URLs.
+  
+  <Expandable title="Function Signature">
+    ```javascript
+    clearImages() => void
+    ```
+  </Expandable>
+</ResponseField>
+
+## Implementation Details
+
+### Batch Processing
+
+Images are processed in batches to optimize memory usage:
+
+- **Batch Size**: 3 images at a time (defined by `UPLOAD_BATCH_SIZE`)
+- **Progress Threshold**: Shows progress messages when uploading more than 5 images (`UPLOAD_PROGRESS_THRESHOLD`)
+- **Processing Delay**: 10ms delay between batches to allow browser updates
+
+### Memory Optimization
+
+The hook implements intelligent memory management:
+
+<CodeGroup>
+```javascript Large Image Detection
+// Files > 10MB are flagged as large images
+const isLargeImage = file.size > LARGE_IMAGE_THRESHOLD; // 10MB
+
+if (isLargeImage) {
+  // Create low-resolution preview to save memory
+  preview = await createLowResPreview(file);
+} else {
+  // Use standard preview for normal-sized images
+  preview = getImagePreview(file);
+}
+```
+
+```javascript Memory Warnings
+// Estimate memory usage and warn if exceeds threshold
+const estimatedMemory = estimateImageMemoryUsage(file);
+const memoryWarning = estimatedMemory > MEMORY_WARNING_THRESHOLD;
+
+if (memoryWarning) {
+  logger.warn(`Large image detected: ${file.name}. May affect performance.`);
+}
+```
+</CodeGroup>
+
+### Resource Cleanup
+
+The hook properly manages browser resources:
+
+- **Single Image Removal**: Revokes blob URL when removing an image
+- **Bulk Removal**: Revokes all blob URLs when clearing images
+- **Large Images**: Skips URL revocation for low-res previews (different lifecycle)
+
+```javascript
+// Example: Resource cleanup on removal
+const removeImage = (id) => {
+  const imageToRemove = uploadedImages.find((img) => img.id === id);
+  
+  if (imageToRemove && imageToRemove.preview && !imageToRemove.isLargeImage) {
+    URL.revokeObjectURL(imageToRemove.preview);
+  }
+  
+  setUploadedImages((prev) => prev.filter((img) => img.id !== id));
+};
+```
+
+## Constants Reference
+
+The hook uses the following constants from `@/lib/constants`:
+
+<ParamField path="UPLOAD_BATCH_SIZE" type="number" default="3">
+  Number of images to process simultaneously
+</ParamField>
+
+<ParamField path="UPLOAD_PROGRESS_THRESHOLD" type="number" default="5">
+  Minimum number of images to show progress messages
+</ParamField>
+
+<ParamField path="LARGE_IMAGE_THRESHOLD" type="number" default="10485760">
+  File size in bytes (10MB) to trigger low-res preview mode
+</ParamField>
+
+<ParamField path="MEMORY_WARNING_THRESHOLD" type="number">
+  Memory usage threshold for performance warnings
+</ParamField>
+
+## Error Handling
+
+The hook implements comprehensive error handling:
+
+- Failed image uploads return `null` and are filtered from results
+- Individual image errors are logged but don't stop batch processing
+- Success message shows actual count of successfully loaded images
+- Preview URL errors during cleanup are caught and logged
+
+```javascript
+try {
+  // Process image...
+  return imageObject;
+} catch (error) {
+  logger.error(`Error processing image ${file.name}:`, error);
+  return null; // Filtered out later
+}
+```
+
+## Related
+
+- [useImageProcessor](/api/hooks/use-image-processor) - Process uploaded images
+- [Memory Manager](/api/utilities/memory-manager) - Memory optimization utilities
+- [File Validation](/api/utilities/file-validation) - Image validation helpers

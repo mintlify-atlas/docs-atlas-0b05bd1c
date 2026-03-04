@@ -1,0 +1,345 @@
+---
+title: Configuration
+description: Configure PixelFlow's environment, build settings, and application behavior
+---
+
+## Overview
+
+PixelFlow is designed to work out-of-the-box with minimal configuration. However, you can customize various aspects of the application to suit your needs.
+
+## Project Structure
+
+Understanding the project structure helps you configure PixelFlow effectively:
+
+```
+pixelflow/
+├── app/                      # Next.js App Router
+│   ├── layout.jsx           # Root layout & metadata
+│   └── [[...slug]]/         # Catch-all route for SPA
+│       ├── page.jsx
+│       └── client.jsx
+├── src/                      # Application source code
+│   ├── App.jsx              # Main application component
+│   ├── index.css            # Global styles
+│   ├── components/          # React components
+│   ├── config/              # Configuration files
+│   │   └── brandConfig.js   # Brand customization
+│   ├── context/             # React contexts
+│   ├── hooks/               # Custom React hooks
+│   └── lib/                 # Utilities & constants
+│       ├── logger.js
+│       └── constants.js
+├── public/                   # Static assets
+├── next.config.mjs          # Next.js configuration
+├── jsconfig.json            # JavaScript/path aliases
+└── package.json             # Dependencies & scripts
+```
+
+## Next.js Configuration
+
+PixelFlow uses Next.js 16 with static export mode. The configuration is defined in `next.config.mjs`:
+
+```javascript next.config.mjs
+import { dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  output: 'export',      // Static export for client-side SPA
+  distDir: 'build',      // Output directory
+  turbopack: {
+    root: __dirname,     // Turbopack root directory
+  },
+};
+
+export default nextConfig;
+```
+
+<Note>
+The `output: 'export'` setting generates a fully static site that runs entirely in the browser. No Node.js server is required for production.
+</Note>
+
+## Path Aliases
+
+PixelFlow uses the `@/` alias for cleaner imports. This is configured in `jsconfig.json`:
+
+```json jsconfig.json
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  }
+}
+```
+
+### Using Path Aliases
+
+<CodeGroup>
+```javascript Correct - Using @/ alias
+import UploadArea from '@/components/ImageUploader/UploadArea';
+import logger from '@/lib/logger';
+import { useBrand } from '@/context/BrandContext';
+import { UPLOAD_BATCH_SIZE } from '@/lib/constants';
+```
+
+```javascript Avoid - Relative paths
+import UploadArea from '../../components/ImageUploader/UploadArea';
+import logger from '../../lib/logger';
+```
+</CodeGroup>
+
+## Application Constants
+
+Core application constants are centralized in `src/lib/constants.js`. You can modify these values to adjust application behavior:
+
+```javascript src/lib/constants.js
+// Batch processing
+export const UPLOAD_BATCH_SIZE = 3;          // Images to upload simultaneously
+export const PROCESSING_BATCH_SIZE = 3;      // Images to process simultaneously
+export const DOWNLOAD_BATCH_SIZE = 5;        // Images to download simultaneously
+
+// File size thresholds
+export const LARGE_IMAGE_THRESHOLD = 10 * 1024 * 1024;  // 10 MB
+export const MEMORY_WARNING_THRESHOLD = 500 * 1024 * 1024; // 500 MB
+
+// Image optimization
+export const OPTIMIZE_MAX_SIZE_MB = 1;       // Max file size after optimization
+export const OPTIMIZE_MAX_DIMENSION = 1920;  // Max width/height in pixels
+
+// Default dimensions
+export const DEFAULT_RESIZE_WIDTH = 800;
+export const DEFAULT_RESIZE_HEIGHT = 600;
+export const DEFAULT_CROP_WIDTH = 1000;
+export const DEFAULT_CROP_HEIGHT = 1000;
+
+// Image quality settings (0-1 scale)
+export const FORMAT_CONVERSION_QUALITY = 0.92;
+export const RESIZE_QUALITY = 100;  // 0-100 for react-image-file-resizer
+export const MEMORY_COMPRESSION_QUALITY = 0.85;
+export const LOW_RES_PREVIEW_QUALITY = 0.5;
+
+// Memory management
+export const MEMORY_MAX_WIDTH = 1920;
+export const MEMORY_MAX_HEIGHT = 1080;
+export const PREVIEW_SIZE = 300;
+```
+
+<Warning>
+Modifying batch sizes and quality settings can significantly impact performance and memory usage. Test thoroughly with your target use case before deploying changes.
+</Warning>
+
+## Code Quality Configuration
+
+### ESLint
+
+PixelFlow uses ESLint with strict React rules. Configuration in `.eslintrc.json`:
+
+```json .eslintrc.json
+{
+  "extends": ["react-app", "react-app/jest", "prettier"],
+  "rules": {
+    "no-console": "warn",
+    "no-unused-vars": ["warn", { 
+      "argsIgnorePattern": "^_", 
+      "varsIgnorePattern": "^_" 
+    }],
+    "no-debugger": "error",
+    "no-duplicate-imports": "error",
+    "no-var": "error",
+    "prefer-const": "warn",
+    "eqeqeq": ["error", "always"],
+    "no-nested-ternary": "warn",
+    "no-magic-numbers": ["warn", {
+      "ignore": [0, 1, -1, 2, 100],
+      "ignoreArrayIndexes": true,
+      "ignoreDefaultValues": true
+    }]
+  }
+}
+```
+
+### Prettier
+
+Code formatting is handled by Prettier (`.prettierrc`):
+
+```json .prettierrc
+{
+  "semi": true,
+  "singleQuote": true,
+  "trailingComma": "es5",
+  "tabWidth": 2,
+  "printWidth": 100,
+  "bracketSpacing": true,
+  "arrowParens": "always",
+  "endOfLine": "lf",
+  "jsxSingleQuote": false
+}
+```
+
+### Git Hooks with Husky
+
+PixelFlow uses Husky for pre-commit hooks that automatically format and lint staged files:
+
+```json package.json
+{
+  "lint-staged": {
+    "{src,app}/**/*.{js,jsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "{src,app}/**/*.{css,json}": [
+      "prettier --write"
+    ]
+  }
+}
+```
+
+<Steps>
+  <Step title="Initialize Git hooks">
+    ```bash
+    npm run prepare
+    ```
+  </Step>
+  
+  <Step title="Hooks run automatically">
+    When you commit, lint-staged will automatically format and fix linting issues in staged files
+  </Step>
+</Steps>
+
+## Logger Configuration
+
+PixelFlow includes a conditional logger (`src/lib/logger.js`) that only prints in development:
+
+```javascript Usage
+import logger from '@/lib/logger';
+
+logger.log('Processing image...');
+logger.warn('Large file detected');
+logger.error('Upload failed', error);
+logger.info('Batch complete');
+logger.debug('State:', imageState);
+```
+
+<Note>
+Always use `logger.*` instead of `console.*` to ensure logs don't appear in production builds.
+</Note>
+
+## Metadata Configuration
+
+Application metadata is configured in `app/layout.jsx`:
+
+```jsx app/layout.jsx
+export const metadata = {
+  title: 'PixelFlow',
+  description: 'Herramienta de procesamiento de imágenes por lotes',
+  manifest: '/manifest.json',
+  icons: {
+    icon: '/favicon.ico',
+    apple: '/logo192.png',
+  },
+};
+```
+
+You can customize:
+- **title**: Browser tab title
+- **description**: Meta description for SEO
+- **manifest**: PWA manifest file path
+- **icons**: Favicon and app icons
+
+## Browser Compatibility
+
+PixelFlow targets modern browsers as defined in `package.json`:
+
+```json package.json
+{
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}
+```
+
+## Environment-Specific Settings
+
+<Tabs>
+  <Tab title="Development">
+    ```bash
+    npm run dev
+    ```
+    
+    Features:
+    - Turbopack for fast HMR
+    - Source maps enabled
+    - Logger output enabled
+    - Running on http://localhost:3000
+  </Tab>
+  
+  <Tab title="Production">
+    ```bash
+    npm run build
+    npm start
+    ```
+    
+    Features:
+    - Optimized static export
+    - No logger output
+    - Minified bundles
+    - Output in `build/` directory
+  </Tab>
+</Tabs>
+
+## Performance Tuning
+
+<AccordionGroup>
+  <Accordion title="Adjust batch processing sizes">
+    Modify these constants in `src/lib/constants.js` based on your target hardware:
+    
+    ```javascript
+    export const UPLOAD_BATCH_SIZE = 3;      // Lower for slower devices
+    export const PROCESSING_BATCH_SIZE = 3;  // Lower for memory-constrained devices
+    export const DOWNLOAD_BATCH_SIZE = 5;    // Increase for faster networks
+    ```
+  </Accordion>
+  
+  <Accordion title="Optimize image quality settings">
+    Balance quality vs file size by adjusting quality constants:
+    
+    ```javascript
+    export const FORMAT_CONVERSION_QUALITY = 0.92;  // 0.7-0.95 recommended
+    export const OPTIMIZE_MAX_SIZE_MB = 1;          // Target file size
+    ```
+  </Accordion>
+  
+  <Accordion title="Configure memory thresholds">
+    Adjust memory warnings based on target devices:
+    
+    ```javascript
+    export const LARGE_IMAGE_THRESHOLD = 10 * 1024 * 1024;  // 10 MB
+    export const MEMORY_WARNING_THRESHOLD = 500 * 1024 * 1024; // 500 MB
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Customization" icon="palette" href="/customization">
+    Learn how to customize branding, colors, and themes
+  </Card>
+  
+  <Card title="Performance" icon="rocket" href="/advanced/performance">
+    Optimize PixelFlow for production use
+  </Card>
+</CardGroup>

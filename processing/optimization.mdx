@@ -1,0 +1,203 @@
+---
+title: 'Image Optimization'
+description: 'How image optimization works, settings, and best practices for reducing file size'
+icon: 'gauge-high'
+---
+
+## Overview
+
+PixelFlow uses intelligent client-side compression to reduce file sizes while maintaining visual quality. Optimization is the **first step** in the processing pipeline and runs before any other transformations.
+
+<Note>
+  Optimization always runs first in the pipeline to reduce file size before applying other operations like resize, crop, or format conversion.
+</Note>
+
+## How It Works
+
+Optimization uses the `browser-image-compression` library to compress images directly in the browser without sending data to a server.
+
+<Steps>
+  <Step title="Load the image">
+    The original file is loaded into memory for processing.
+  </Step>
+  
+  <Step title="Apply compression">
+    The library reduces file size by:
+    - Removing metadata
+    - Reducing quality intelligently
+    - Downscaling if dimensions exceed max limits
+  </Step>
+  
+  <Step title="Return optimized file">
+    A new compressed File object is returned with reduced size.
+  </Step>
+</Steps>
+
+## Default Settings
+
+PixelFlow applies these optimization constraints by default:
+
+| Setting | Value | Description |
+|---------|-------|-------------|
+| **Max File Size** | 1 MB | Target maximum file size after compression |
+| **Max Dimension** | 1920px | Maximum width or height (downscales if larger) |
+| **Web Worker** | Enabled | Uses background threads for better performance |
+
+<Info>
+  These values are defined in `src/lib/constants.js` as `OPTIMIZE_MAX_SIZE_MB` and `OPTIMIZE_MAX_DIMENSION`.
+</Info>
+
+## Code Implementation
+
+Here's how optimization is implemented in the processing pipeline:
+
+```javascript
+import imageCompression from 'browser-image-compression';
+import { OPTIMIZE_MAX_SIZE_MB, OPTIMIZE_MAX_DIMENSION } from '@/lib/constants';
+
+export const optimizeImage = async (file, options = {}) => {
+  const defaultOptions = {
+    maxSizeMB: OPTIMIZE_MAX_SIZE_MB,           // 1 MB
+    maxWidthOrHeight: OPTIMIZE_MAX_DIMENSION,  // 1920px
+    useWebWorker: true,
+  };
+
+  const compressionOptions = {
+    ...defaultOptions,
+    ...options,
+  };
+
+  try {
+    return await imageCompression(file, compressionOptions);
+  } catch (error) {
+    logger.error('Error al optimizar la imagen:', error);
+    return file; // Return original file on error
+  }
+};
+```
+
+## Usage in Processing Pipeline
+
+Optimization is controlled by the `optimize` flag in processing settings:
+
+```javascript
+const { processingSettings, toggleOptimize } = useImageProcessor(uploadedImages);
+
+// Check if optimization is enabled
+console.log(processingSettings.optimize); // true by default
+
+// Toggle optimization on/off
+toggleOptimize();
+```
+
+### Pipeline Execution
+
+When processing images, optimization runs first:
+
+```javascript
+// 1. First apply optimization if enabled (reduces file size)
+if (processingSettings.optimize) {
+  processedFile = await optimizeImage(processedFile, {
+    maxSizeMB: OPTIMIZE_MAX_SIZE_MB,
+    maxWidthOrHeight: OPTIMIZE_MAX_DIMENSION,
+    useWebWorker: true,
+  });
+  fileChanged = true;
+  logger.log('Imagen optimizada');
+}
+
+// 2. Then apply resize...
+// 3. Then apply crop...
+// 4. Finally apply format conversion...
+```
+
+<Info>
+  See the full pipeline order in [Batch Operations](/processing/batch-operations).
+</Info>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Always optimize before resizing">
+    Optimizing first reduces the file size, making subsequent operations faster. PixelFlow handles this automatically.
+  </Accordion>
+  
+  <Accordion title="Adjust max dimension for your use case">
+    - **Web galleries**: 1920px is ideal for HD displays
+    - **Thumbnails**: Consider 800px or less
+    - **Print**: May need higher resolution (disable optimization or increase max dimension)
+  </Accordion>
+  
+  <Accordion title="Monitor compression results">
+    Check the optimization statistics in processed images:
+    
+    ```javascript
+    processedImage.optimization = {
+      originalSize: 5242880,      // 5 MB
+      newSize: 1048576,           // 1 MB
+      reduction: 4194304,         // 4 MB saved
+      reductionPercent: "80.00"   // 80% reduction
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Use Web Workers for large batches">
+    The `useWebWorker: true` option (enabled by default) processes images in background threads, preventing UI freezes when processing multiple large files.
+  </Accordion>
+</AccordionGroup>
+
+## Performance Considerations
+
+<Warning>
+  Optimizing very large images (>10 MB) may take several seconds. PixelFlow processes images in batches of **3** to balance speed and memory usage.
+</Warning>
+
+### Batch Processing
+
+Images are optimized in batches defined by `PROCESSING_BATCH_SIZE` (3 images at a time):
+
+```javascript
+const BATCH_SIZE = PROCESSING_BATCH_SIZE; // 3
+
+for (let i = 0; i < uploadedImages.length; i += BATCH_SIZE) {
+  const batch = uploadedImages.slice(i, i + BATCH_SIZE);
+  const batchResults = await Promise.all(
+    batch.map(async (img) => {
+      // Process each image in the batch
+      let processedFile = await optimizeImage(img.file);
+      // ...
+    })
+  );
+}
+```
+
+## Error Handling
+
+If optimization fails for any reason, PixelFlow gracefully returns the original file:
+
+```javascript
+try {
+  return await imageCompression(file, compressionOptions);
+} catch (error) {
+  logger.error('Error al optimizar la imagen:', error);
+  return file; // Fallback to original
+}
+```
+
+<Note>
+  This ensures the processing pipeline continues even if optimization encounters an error.
+</Note>
+
+## Related Topics
+
+<CardGroup cols={2}>
+  <Card title="Resizing" icon="expand" href="/processing/resizing">
+    Learn about image resizing (step 2 in the pipeline)
+  </Card>
+  <Card title="Format Conversion" icon="arrow-right-arrow-left" href="/processing/format-conversion">
+    Convert between image formats (final step in the pipeline)
+  </Card>
+  <Card title="Batch Operations" icon="layer-group" href="/processing/batch-operations">
+    Understand the complete processing pipeline
+  </Card>
+</CardGroup>

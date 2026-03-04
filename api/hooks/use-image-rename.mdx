@@ -1,0 +1,423 @@
+---
+title: 'useImageRename'
+description: 'Custom React hook for reactive batch image renaming with sequential numbering, text operations, and cleaning'
+---
+
+## Overview
+
+The `useImageRename` hook provides reactive, automatic renaming of processed images with support for sequential numbering, text addition/replacement, and filename sanitization. Renaming happens automatically via `useEffect` whenever processed images or rename settings change.
+
+## Import
+
+```javascript
+import useImageRename from '@/hooks/useImageRename';
+```
+
+## Parameters
+
+<ParamField path="processedImages" type="array" required>
+  Array of processed image objects from `useImageProcessor`. The hook monitors this array and automatically renames images when it changes.
+</ParamField>
+
+## Usage
+
+```javascript
+function App() {
+  const { processedImages } = useImageProcessor(uploadedImages);
+  
+  const {
+    renamedImages,
+    renameSettings,
+    toggleCleanText,
+    changeRenameMode,
+    updateSequentialSettings,
+    updateAddTextSettings,
+    updateReplaceTextSettings,
+  } = useImageRename(processedImages);
+
+  return (
+    <RenamePanel
+      settings={renameSettings}
+      onToggleClean={toggleCleanText}
+      onModeChange={changeRenameMode}
+      onSequentialUpdate={updateSequentialSettings}
+      onAddTextUpdate={updateAddTextSettings}
+      onReplaceTextUpdate={updateReplaceTextSettings}
+      preview={renamedImages}
+    />
+  );
+}
+```
+
+## Return Values
+
+<ResponseField name="renamedImages" type="array" required>
+  Array of images with updated names. Automatically updates when `processedImages` or `renameSettings` change.
+  
+  <Expandable title="Renamed Image Object Structure">
+    <ResponseField name="...processedImage" type="object">
+      All properties from the processed image
+    </ResponseField>
+    
+    <ResponseField name="renamed" type="boolean">
+      Always `true` for renamed images
+    </ResponseField>
+    
+    <ResponseField name="newName" type="string">
+      The new filename with proper extension (e.g., "IMG_001.jpg")
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="renameSettings" type="object" required>
+  Current rename configuration.
+  
+  <Expandable title="Rename Settings Structure">
+    <ResponseField name="cleanText" type="boolean" default="true">
+      Whether to sanitize filenames (remove special chars, lowercase)
+    </ResponseField>
+    
+    <ResponseField name="mode" type="string" default="sequential">
+      Rename mode: `'sequential'`, `'addText'`, or `'replaceText'`
+    </ResponseField>
+    
+    <ResponseField name="sequential" type="object">
+      Sequential numbering configuration
+      
+      <Expandable title="Sequential Settings">
+        <ResponseField name="prefix" type="string" default="IMG_">
+          Text prefix before the number
+        </ResponseField>
+        
+        <ResponseField name="startNumber" type="number" default="1">
+          Starting number for sequence
+        </ResponseField>
+        
+        <ResponseField name="digits" type="number" default="3">
+          Number of digits with zero-padding (e.g., 3 = "001")
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="addText" type="object">
+      Text addition configuration
+      
+      <Expandable title="Add Text Settings">
+        <ResponseField name="position" type="string" default="prefix">
+          Where to add text: `'prefix'` or `'suffix'`
+        </ResponseField>
+        
+        <ResponseField name="text" type="string" default="">
+          Text to add to filename
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="replaceText" type="object">
+      Text replacement configuration
+      
+      <Expandable title="Replace Text Settings">
+        <ResponseField name="search" type="string" default="">
+          Text pattern to search for (supports regex)
+        </ResponseField>
+        
+        <ResponseField name="replace" type="string" default="">
+          Replacement text
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="toggleCleanText" type="function" required>
+  Toggles filename sanitization on/off.
+  
+  ```javascript
+  toggleCleanText() => void
+  ```
+</ResponseField>
+
+<ResponseField name="changeRenameMode" type="function" required>
+  Changes the active rename mode.
+  
+  <Expandable title="Function Signature">
+    ```javascript
+    changeRenameMode(mode: string) => void
+    ```
+    
+    <ParamField path="mode" type="string" required>
+      Rename mode: `'sequential'`, `'addText'`, or `'replaceText'`
+    </ParamField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="updateSequentialSettings" type="function" required>
+  Updates sequential numbering configuration.
+  
+  <Expandable title="Function Signature">
+    ```javascript
+    updateSequentialSettings(settings: Partial<SequentialSettings>) => void
+    ```
+    
+    <ParamField path="settings" type="object" required>
+      Partial sequential settings to update
+    </ParamField>
+    
+    <Expandable title="Example">
+      ```javascript
+      // Custom prefix and start number
+      updateSequentialSettings({ 
+        prefix: 'photo_', 
+        startNumber: 100,
+        digits: 4 
+      });
+      // Results: photo_0100.jpg, photo_0101.jpg, ...
+      ```
+    </Expandable>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="updateAddTextSettings" type="function" required>
+  Updates text addition configuration.
+  
+  <Expandable title="Function Signature">
+    ```javascript
+    updateAddTextSettings(settings: Partial<AddTextSettings>) => void
+    ```
+    
+    <ParamField path="settings" type="object" required>
+      Partial add text settings to update
+    </ParamField>
+    
+    <Expandable title="Example">
+      ```javascript
+      // Add suffix to filenames
+      updateAddTextSettings({ 
+        position: 'suffix', 
+        text: '_compressed' 
+      });
+      // image.jpg -> image_compressed.jpg
+      ```
+    </Expandable>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="updateReplaceTextSettings" type="function" required>
+  Updates text replacement configuration.
+  
+  <Expandable title="Function Signature">
+    ```javascript
+    updateReplaceTextSettings(settings: Partial<ReplaceTextSettings>) => void
+    ```
+    
+    <ParamField path="settings" type="object" required>
+      Partial replace text settings to update
+    </ParamField>
+    
+    <Expandable title="Example">
+      ```javascript
+      // Replace spaces with underscores
+      updateReplaceTextSettings({ 
+        search: ' ', 
+        replace: '_' 
+      });
+      // my photo.jpg -> my_photo.jpg
+      ```
+    </Expandable>
+  </Expandable>
+</ResponseField>
+
+## Rename Modes
+
+### Sequential Mode
+
+Generates numbered filenames with customizable prefix, start number, and zero-padding:
+
+```javascript
+// Default settings
+{ prefix: 'IMG_', startNumber: 1, digits: 3 }
+// Results: IMG_001.jpg, IMG_002.jpg, IMG_003.jpg
+
+// Custom settings
+{ prefix: 'vacation_', startNumber: 50, digits: 4 }
+// Results: vacation_0050.jpg, vacation_0051.jpg, vacation_0052.jpg
+```
+
+Source: `src/hooks/useImageRename.js:54-59`
+
+### Add Text Mode
+
+Adds custom text as prefix or suffix to existing filenames:
+
+```javascript
+// Prefix mode
+{ position: 'prefix', text: 'optimized_' }
+// photo.jpg -> optimized_photo.jpg
+
+// Suffix mode
+{ position: 'suffix', text: '_web' }
+// photo.jpg -> photo_web.jpg
+```
+
+Source: `src/hooks/useImageRename.js:62-67`
+
+### Replace Text Mode
+
+Replaces text patterns using regular expressions:
+
+```javascript
+// Simple replacement
+{ search: 'IMG', replace: 'Photo' }
+// IMG_1234.jpg -> Photo_1234.jpg
+
+// Regex pattern (global replacement)
+{ search: '\\s+', replace: '_' }
+// my photo 001.jpg -> my_photo_001.jpg
+```
+
+Source: `src/hooks/useImageRename.js:70-75`
+
+## Filename Sanitization
+
+When `cleanText` is enabled (default), filenames are automatically sanitized:
+
+```javascript
+const cleanFileName = (name) => {
+  return name
+    .replace(/[^\w\s.-]/g, '')  // Remove special characters
+    .replace(/\s+/g, '_')        // Replace spaces with underscores
+    .toLowerCase();              // Convert to lowercase
+};
+```
+
+**Examples:**
+
+- `My Photo (1).jpg` → `my_photo_1.jpg`
+- `IMG@2024#01!.png` → `img202401.png`
+- `Vacation - Beach.jpeg` → `vacation_-_beach.jpeg`
+
+Source: `src/hooks/useImageRename.js:43-51`
+
+## Extension Handling
+
+The hook intelligently determines the correct file extension:
+
+<Steps>
+  <Step title="Check MIME Type">
+    If the processed file has a MIME type, extract extension from it
+    ```javascript
+    'image/jpeg' -> 'jpg'
+    'image/png' -> 'png'
+    'image/webp' -> 'webp'
+    ```
+  </Step>
+  
+  <Step title="Fallback to Filename">
+    If no MIME type, extract extension from the filename
+    ```javascript
+    'photo.jpg' -> 'jpg'
+    'image.PNG' -> 'PNG'
+    ```
+  </Step>
+  
+  <Step title="Apply to Renamed File">
+    The extension is preserved and applied to the new name
+    ```javascript
+    baseName = 'IMG_001'
+    extension = 'jpg'
+    newName = 'IMG_001.jpg'
+    ```
+  </Step>
+</Steps>
+
+Source: `src/hooks/useImageRename.js:79-100`
+
+## Reactive Updates
+
+The hook uses `useEffect` to automatically rename images when dependencies change:
+
+```javascript
+useEffect(() => {
+  // Rename all images whenever:
+  // 1. processedImages array changes
+  // 2. renameSettings object changes
+  const renamed = processedImages.map((img, index) => {
+    // Apply rename logic...
+    return { ...img, renamed: true, newName };
+  });
+  
+  setRenamedImages(renamed);
+}, [processedImages, renameSettings]);
+```
+
+**This means:**
+- Settings changes instantly update all filenames
+- New processed images are automatically renamed
+- No manual trigger required
+
+Source: `src/hooks/useImageRename.js:34-137`
+
+## Edge Cases
+
+### Empty processedImages
+
+When `processedImages` is empty or null, `renamedImages` is automatically cleared:
+
+```javascript
+if (!processedImages || processedImages.length === 0) {
+  setRenamedImages([]);
+  return;
+}
+```
+
+Source: `src/hooks/useImageRename.js:35-38`
+
+### Empty Search Text
+
+In replace mode, if search text is empty, the original name is preserved:
+
+```javascript
+const replaceText = (name) => {
+  const { search, replace } = renameSettings.replaceText;
+  if (!search) return name; // No replacement
+  return name.replace(new RegExp(search, 'g'), replace);
+};
+```
+
+Source: `src/hooks/useImageRename.js:70-75`
+
+### Empty Add Text
+
+In add text mode, if text is empty, the original name is preserved:
+
+```javascript
+const addText = (name) => {
+  const { position, text } = renameSettings.addText;
+  if (!text) return name; // No addition
+  return position === 'prefix' ? `${text}${name}` : `${name}${text}`;
+};
+```
+
+Source: `src/hooks/useImageRename.js:62-67`
+
+## Data Flow
+
+The hook is the final step in the PixelFlow processing pipeline:
+
+```
+useImageUpload (upload)
+    ↓
+useImageProcessor (process) 
+    ↓
+useImageRename (rename) ← You are here
+    ↓
+ProcessedImagesList + DownloadButton
+```
+
+Rename happens **reactively** (via useEffect), while processing happens **manually** (via button click).
+
+## Related
+
+- [useImageProcessor](/api/hooks/use-image-processor) - Process images before renaming
+- [useImageUpload](/api/hooks/use-image-upload) - Upload images for processing
+- [File Validation](/api/utilities/file-validation) - Filename helper utilities
